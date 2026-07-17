@@ -166,6 +166,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .btn{flex:1;border:none;border-radius:11px;padding:13px;font-size:15px;font-weight:700;cursor:pointer}
 .btn.primary{background:var(--accent);color:#fff}
 .btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.35;cursor:default}
 .btn.danger{background:transparent;color:var(--red);border:1px solid var(--red);flex:none;padding:13px 16px}
 
 /* backup */
@@ -294,6 +295,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   </div>
 
   <div class="actions">
+    <button type="button" class="btn ghost" id="draftUndo" style="flex:none;padding:13px 16px" title="直前のマス操作を戻す">↩</button>
     <button class="btn primary" id="save">保存する</button>
     <button class="btn danger" id="del" style="display:none">削除</button>
   </div>
@@ -436,9 +438,14 @@ function render(){
     l.appendChild(c);
   });
 }
+/* 編集中のマス操作の戻す（下書きレベルundo） */
+var draftHist=[];
+function draftSnap(){draftHist.push(JSON.stringify(setsDraft.map(function(a){return Array.from(a)})));if(draftHist.length>40)draftHist.shift();refreshDraftUndo()}
+function draftUndo(){if(!draftHist.length){toast("戻すマス操作がありません");return}var a=JSON.parse(draftHist.pop());setsDraft=a.map(function(x){return new Set(x)});document.getElementById("fSets").value=setsDraft.length;buildSets();refreshDraftUndo();toast("↩ マス操作を1つ戻しました")}
+function refreshDraftUndo(){var b=document.getElementById("draftUndo");if(b)b.disabled=!draftHist.length}
 function parseLabels(){var s=document.getElementById("fLabels").value.trim();if(!s)return null;var a=s.split(/[・,、.\s/]+/).filter(function(x){return x});return a.length?a:null}
 function fTotalVal(){var L=parseLabels();if(L)return L.length;return Math.max(0,Math.min(200,parseInt(document.getElementById("fTotal").value,10)||0))}
-function syncSets(n){n=Math.max(1,Math.min(50,n||1));while(setsDraft.length<n)setsDraft.push(new Set());while(setsDraft.length>n)setsDraft.pop()}
+function syncSets(n){n=Math.max(1,Math.min(50,n||1));if(n!==setsDraft.length)draftSnap();while(setsDraft.length<n)setsDraft.push(new Set());while(setsDraft.length>n)setsDraft.pop()}
 function buildSets(){
   var L=parseLabels();
   var t=fTotalVal();
@@ -454,16 +461,16 @@ function buildSets(){
     var lab=document.createElement("span");lab.innerHTML=(i+1)+'セット目 <span class="rng">'+esc(rngTxt())+'</span>';
     var btns=document.createElement("span");btns.className="mini-btns";
     var bf=document.createElement("button");bf.type="button";bf.textContent="全部";
-    bf.onclick=function(){var s=new Set();for(var v=1;v<=t;v++)s.add(v);setsDraft[i]=s;buildSets()};
+    bf.onclick=function(){draftSnap();var s=new Set();for(var v=1;v<=t;v++)s.add(v);setsDraft[i]=s;buildSets()};
     var bc=document.createElement("button");bc.type="button";bc.textContent="クリア";
-    bc.onclick=function(){setsDraft[i]=new Set();buildSets()};
+    bc.onclick=function(){draftSnap();setsDraft[i]=new Set();buildSets()};
     btns.appendChild(bf);btns.appendChild(bc);
     head.appendChild(lab);head.appendChild(btns);block.appendChild(head);
     var chips=document.createElement("div");chips.className="chips";
     for(var v=1;v<=t;v++){(function(v){
       var b=document.createElement("button");b.type="button";
       b.className="chip"+(set.has(v)?" own":"");b.textContent=L?(L[v-1]||v):v;
-      b.onclick=function(){set.has(v)?set.delete(v):set.add(v);b.classList.toggle("own");lab.querySelector(".rng").textContent=rngTxt()};
+      b.onclick=function(){draftSnap();set.has(v)?set.delete(v):set.add(v);b.classList.toggle("own");lab.querySelector(".rng").textContent=rngTxt()};
       chips.appendChild(b);
     })(v)}
     block.appendChild(chips);wrap.appendChild(block);
@@ -487,6 +494,7 @@ function openSheet(id){
   document.getElementById("fPrice").value=w&&w.price?w.price:"";
   document.getElementById("fPriceAdd").value="";
   photoDraft=undefined;
+  draftHist=[];refreshDraftUndo();
   setPhotoPreview(w&&photos[w.id]?photos[w.id]:null);
   document.getElementById("del").style.display=w?"block":"none";
   buildSets();
@@ -541,6 +549,7 @@ document.getElementById("ioCopy").onclick=function(){var ta=document.getElementB
 document.getElementById("ioLoad").onclick=function(){try{var a=JSON.parse(document.getElementById("ioText").value);if(!Array.isArray(a))throw 0;snapshot();a.forEach(function(w){if(w.photo){photos[w.id]=w.photo;delete w.photo}});persistPhotos();works=a;migrate();render();document.getElementById("ioBox").style.display="none";toast("読み込みました（↩で戻せます）")}catch(e){toast("読み込めませんでした（文字列を確認）")}};
 document.getElementById("undoBtn").onclick=undo;
 document.getElementById("redoBtn").onclick=redo;
+document.getElementById("draftUndo").onclick=draftUndo;
 document.getElementById("gEdit").onclick=openGMgr;
 document.getElementById("gScrim").onclick=closeGMgr;
 document.getElementById("gClose").onclick=closeGMgr;
