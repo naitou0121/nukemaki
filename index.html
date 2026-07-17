@@ -88,6 +88,10 @@ h1{font-size:18px;font-weight:700;margin:0;letter-spacing:.01em}
 .card.lv-done{border-left-color:var(--green)}
 .c-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .c-name{font-size:16px;font-weight:700;line-height:1.3;word-break:break-word}
+.cthumb{width:46px;height:46px;object-fit:cover;border-radius:8px;flex:none;border:1px solid var(--line)}
+.photorow{display:flex;align-items:center;gap:10px}
+.photorow img{width:64px;height:64px;object-fit:cover;border-radius:9px;border:1px solid var(--line)}
+.pbtn{font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--ink-soft);border-radius:8px;padding:8px 12px;cursor:pointer;display:inline-block}
 .pill{flex:none;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
 .pill.over,.pill.urgent{background:var(--red-bg);color:var(--red)}
 .pill.soon{background:var(--amber-bg);color:var(--amber)}
@@ -232,6 +236,9 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     <button type="button" id="tPlus" aria-label="1増やす">＋</button>
   </div>
 
+  <label class="f" for="fLabels">巻の名前（数字じゃない時だけ・「・」区切り）</label>
+  <input class="t" id="fLabels" placeholder="例）上・下　／　綿・祟・鬼・暇" autocomplete="off">
+
   <label class="f" for="fSets">作るセット数</label>
   <div class="stepper">
     <button type="button" id="sMinus" aria-label="1減らす">−</button>
@@ -251,6 +258,14 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   <label class="f" for="fPrice">仕入れ値（円・任意）</label>
   <input class="t" id="fPrice" type="number" inputmode="numeric" min="0" placeholder="例）1200">
 
+  <label class="f">写真（任意・1枚）</label>
+  <div class="photorow">
+    <img id="pPrev" alt="" style="display:none">
+    <label class="pbtn" for="fPhoto">📷 写真を選ぶ</label>
+    <button type="button" class="pbtn" id="pDel" style="display:none">写真を消す</button>
+    <input type="file" id="fPhoto" accept="image/*" style="display:none">
+  </div>
+
   <div class="actions">
     <button class="btn primary" id="save">保存する</button>
     <button class="btn danger" id="del" style="display:none">削除</button>
@@ -264,11 +279,13 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 var SEED=[{"id": "w1", "name": "呪術廻戦", "genre": "少年", "total": 30, "setsData": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]], "reason": "", "deadline": "", "price": 0}, {"id": "w2", "name": "薬屋のひとりごと", "genre": "女性", "total": 12, "setsData": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]], "reason": "アニメ2期", "deadline": "2026-08-01", "price": 0}, {"id": "w3", "name": "SPY×FAMILY", "genre": "少年", "total": 14, "setsData": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]], "reason": "", "deadline": "", "price": 3000}, {"id": "w4", "name": "チェンソーマン", "genre": "青年", "total": 18, "setsData": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]], "reason": "", "deadline": "", "price": 0}, {"id": "w5", "name": "ダンダダン", "genre": "少年", "total": 15, "setsData": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]], "reason": "アニメ化", "deadline": "", "price": 0}];
 try{if(!localStorage.getItem("nukemaki_seeded_sample")){localStorage.setItem("nukemaki_v1",JSON.stringify(SEED));localStorage.setItem("nukemaki_seeded_sample","1");}}catch(e){}
 
-var KEY="nukemaki_v1";
-var works=load(), editId=null, setsDraft=[new Set()], query="", genreFilter="";
+var KEY="nukemaki_v1", PKEY="nukemaki_photos";
+var works=load(), photos=loadPhotos(), editId=null, setsDraft=[new Set()], photoDraft, query="", genreFilter="";
 var undoStack=loadStack("nukemaki_undo"), redoStack=loadStack("nukemaki_redo");
 function load(){try{var a=JSON.parse(localStorage.getItem(KEY));return Array.isArray(a)?a:[]}catch(e){return[]}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(works))}
+function loadPhotos(){try{var o=JSON.parse(localStorage.getItem(PKEY));return (o&&typeof o==="object"&&!Array.isArray(o))?o:{}}catch(e){return{}}}
+function persistPhotos(){try{localStorage.setItem(PKEY,JSON.stringify(photos))}catch(e){toast("⚠️ 写真の保存容量がいっぱいです（古い写真を消してください）")}}
 function loadStack(k){try{var a=JSON.parse(localStorage.getItem(k));return Array.isArray(a)?a:[]}catch(e){return[]}}
 function persistStacks(){try{localStorage.setItem("nukemaki_undo",JSON.stringify(undoStack));localStorage.setItem("nukemaki_redo",JSON.stringify(redoStack))}catch(e){}}
 function snapshot(){undoStack.push(JSON.stringify(works));while(undoStack.length>20)undoStack.shift();redoStack=[];persistStacks()}
@@ -288,7 +305,10 @@ function migrate(){var ch=false;works.forEach(function(w){
   if(w.owned!==undefined){delete w.owned;ch=true}
   if(w.counts!==undefined){delete w.counts;ch=true}
   if(w.sets!==undefined){delete w.sets;ch=true}
+  if(w.photo){photos[w.id]=w.photo;delete w.photo;persistPhotos();ch=true}
 });if(ch)persist()}
+function labelsOf(w){return (w.labels&&w.labels.length)?w.labels:null}
+function volName(w,v){var L=labelsOf(w);return L?(L[v-1]!==undefined?L[v-1]:v):v}
 function setsList(w){return (w.setsData&&w.setsData.length)?w.setsData:[[]]}
 function nSets(w){return setsList(w).length}
 function setMissing(arr,total){var o={};arr.forEach(function(v){o[v]=1});var m=[];for(var v=1;v<=total;v++)if(!o[v])m.push(v);return m}
@@ -299,6 +319,7 @@ function today(){var d=new Date();return new Date(d.getFullYear(),d.getMonth(),d
 function daysLeft(dl){if(!dl)return null;var p=dl.split("-");var t=new Date(+p[0],+p[1]-1,+p[2]);return Math.round((t-today())/86400000)}
 function statusOf(w){if(allDone(w))return {lv:"done",cls:"done",label:"揃い ✅",rank:5,d:9999};var d=daysLeft(w.deadline);if(d===null)return {lv:"nodate",cls:"nodate",label:"締切未設定",rank:3,d:8000};if(d<0)return {lv:"over",cls:"over",label:"期限切れ "+(-d)+"日",rank:0,d:d};if(d<=14)return {lv:"urgent",cls:"urgent",label:"残 "+d+"日",rank:1,d:d};if(d<=30)return {lv:"soon",cls:"soon",label:"残 "+d+"日",rank:2,d:d};return {lv:"ok",cls:"nodate",label:"残 "+d+"日",rank:4,d:d}}
 function rangeFmt(arr){if(!arr.length)return "";var out=[],s=arr[0],p=arr[0];for(var i=1;i<=arr.length;i++){if(arr[i]===p+1){p=arr[i];continue}out.push(s===p?(""+s):(s+"-"+p));s=arr[i];p=arr[i]}return out.join(",")}
+function missFmt(w,volArr){var L=labelsOf(w);if(L)return volArr.map(function(v){return volName(w,v)}).join("・");return rangeFmt(volArr).replace(/,/g,"・")}
 function fmtDate(dl){if(!dl)return "";var p=dl.split("-");return (+p[1])+"/"+(+p[2])}
 function yen(n){return "¥"+(Number(n)||0).toLocaleString("ja-JP")}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -328,41 +349,46 @@ function render(){
     var missHtml;
     if(n===1){
       var m=setMissing(setsList(w)[0],w.total);
-      missHtml=m.length?'<div class="miss"><span class="lbl">抜け</span> <span class="vols">'+rangeFmt(m).replace(/,/g,"・")+'</span></div>':'<div class="miss" style="color:var(--green)">全巻そろってます</div>';
+      missHtml=m.length?'<div class="miss"><span class="lbl">抜け</span> <span class="vols">'+esc(missFmt(w,m))+'</span></div>':'<div class="miss" style="color:var(--green)">全巻そろってます</div>';
     }else{
       var lines=setsList(w).map(function(arr,i){
         var m=setMissing(arr,w.total);
         if(m.length===0)return '<div class="setrow"><span class="sn">'+(i+1)+'</span><span style="color:var(--green)">✅ 揃い</span></div>';
-        return '<div class="setrow"><span class="sn">'+(i+1)+'</span><span class="lbl">抜け</span> <span class="vols">'+rangeFmt(m).replace(/,/g,"・")+'</span></div>';
+        return '<div class="setrow"><span class="sn">'+(i+1)+'</span><span class="lbl">抜け</span> <span class="vols">'+esc(missFmt(w,m))+'</span></div>';
       }).join("");
       missHtml='<div class="setlist">'+lines+'</div>';
     }
-    var setLine=n>1?'<div class="rate tnum">'+n+'セット ・ 完成 '+comp+'/'+n+' ・ 既刊'+w.total+'</div>':'<div class="rate tnum">既刊 '+w.total+' ・ '+totalOwned(w)+'/'+w.total+' 冊（'+rate+'%）</div>';
+    var unit=labelsOf(w)?"全"+w.total+"冊":"既刊 "+w.total;
+    var setLine=n>1?'<div class="rate tnum">'+n+'セット ・ 完成 '+comp+'/'+n+' ・ '+unit+'</div>':'<div class="rate tnum">'+unit+' ・ '+totalOwned(w)+'/'+w.total+' 冊（'+rate+'%）</div>';
     var metaBits=[];
     if(w.genre)metaBits.push('<span class="gtag">'+esc(w.genre)+'</span>');
     if(w.deadline)metaBits.push('<span class="dl">締切 '+fmtDate(w.deadline)+'</span>');
     if(w.price)metaBits.push('<span class="tnum">仕入 '+yen(w.price)+'</span>');
     if(w.reason)metaBits.push('<span>'+esc(w.reason)+'</span>');
+    var thumb=photos[w.id]?'<img class="cthumb" src="'+photos[w.id]+'" alt="">':"";
     var c=document.createElement("div");
     c.className="card lv-"+s.lv;
-    c.innerHTML='<div class="c-top"><div class="c-name">'+esc(w.name)+'</div><span class="pill '+s.cls+'">'+s.label+'</span></div>'+missHtml+'<div class="bar"><i style="width:'+rate+'%"></i></div>'+setLine+(metaBits.length?'<div class="meta">'+metaBits.join("")+'</div>':"");
+    c.innerHTML='<div class="c-top">'+thumb+'<div class="c-name" style="flex:1">'+esc(w.name)+'</div><span class="pill '+s.cls+'">'+s.label+'</span></div>'+missHtml+'<div class="bar"><i style="width:'+rate+'%"></i></div>'+setLine+(metaBits.length?'<div class="meta">'+metaBits.join("")+'</div>':"");
     c.onclick=function(){openSheet(w.id)};
     l.appendChild(c);
   });
 }
-function fTotalVal(){return Math.max(0,Math.min(200,parseInt(document.getElementById("fTotal").value,10)||0))}
+function parseLabels(){var s=document.getElementById("fLabels").value.trim();if(!s)return null;var a=s.split(/[・,、.\s/]+/).filter(function(x){return x});return a.length?a:null}
+function fTotalVal(){var L=parseLabels();if(L)return L.length;return Math.max(0,Math.min(200,parseInt(document.getElementById("fTotal").value,10)||0))}
 function syncSets(n){n=Math.max(1,Math.min(50,n||1));while(setsDraft.length<n)setsDraft.push(new Set());while(setsDraft.length>n)setsDraft.pop()}
 function buildSets(){
+  var L=parseLabels();
   var t=fTotalVal();
+  if(L)document.getElementById("fTotal").value=t;
   syncSets(parseInt(document.getElementById("fSets").value,10)||1);
   var wrap=document.getElementById("setsWrap");
-  if(!t){wrap.innerHTML='<span class="chip-empty">既刊数を入れると巻マスが出ます</span>';return}
+  if(!t){wrap.innerHTML='<span class="chip-empty">既刊数（または巻の名前）を入れると巻マスが出ます</span>';return}
   wrap.innerHTML="";
   setsDraft.forEach(function(set,i){
     var block=document.createElement("div");block.className="setblock";
     var head=document.createElement("div");head.className="sethead";
-    var rngTxt=rangeFmt(Array.from(set).filter(function(v){return v<=t}).sort(function(a,b){return a-b}))||"—";
-    var lab=document.createElement("span");lab.innerHTML=(i+1)+'セット目 <span class="rng">'+rngTxt+'</span>';
+    function rngTxt(){var arr=Array.from(set).filter(function(v){return v<=t}).sort(function(a,b){return a-b});if(!arr.length)return "—";if(L)return arr.map(function(v){return L[v-1]||v}).join("・");return rangeFmt(arr)}
+    var lab=document.createElement("span");lab.innerHTML=(i+1)+'セット目 <span class="rng">'+esc(rngTxt())+'</span>';
     var btns=document.createElement("span");btns.className="mini-btns";
     var bf=document.createElement("button");bf.type="button";bf.textContent="全部";
     bf.onclick=function(){var s=new Set();for(var v=1;v<=t;v++)s.add(v);setsDraft[i]=s;buildSets()};
@@ -373,14 +399,15 @@ function buildSets(){
     var chips=document.createElement("div");chips.className="chips";
     for(var v=1;v<=t;v++){(function(v){
       var b=document.createElement("button");b.type="button";
-      b.className="chip"+(set.has(v)?" own":"");b.textContent=v;
-      b.onclick=function(){set.has(v)?set.delete(v):set.add(v);b.classList.toggle("own");
-        lab.querySelector(".rng").textContent=rangeFmt(Array.from(set).filter(function(x){return x<=t}).sort(function(a,b){return a-b}))||"—";};
+      b.className="chip"+(set.has(v)?" own":"");b.textContent=L?(L[v-1]||v):v;
+      b.onclick=function(){set.has(v)?set.delete(v):set.add(v);b.classList.toggle("own");lab.querySelector(".rng").textContent=rngTxt()};
       chips.appendChild(b);
     })(v)}
     block.appendChild(chips);wrap.appendChild(block);
   });
 }
+function setPhotoPreview(src){var p=document.getElementById("pPrev"),d=document.getElementById("pDel");if(src){p.src=src;p.style.display="block";d.style.display="inline-block"}else{p.removeAttribute("src");p.style.display="none";d.style.display="none"}}
+function shrinkImage(file,cb){var r=new FileReader();r.onload=function(){var img=new Image();img.onload=function(){var m=480,s=Math.min(1,m/Math.max(img.width,img.height));var c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*s));c.height=Math.max(1,Math.round(img.height*s));c.getContext("2d").drawImage(img,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",0.6))};img.onerror=function(){toast("画像を読み込めませんでした")};img.src=r.result};r.readAsDataURL(file)}
 function openSheet(id){
   editId=id;
   var w=id?works.filter(function(x){return x.id===id})[0]:null;
@@ -388,12 +415,15 @@ function openSheet(id){
   document.getElementById("fName").value=w?w.name:"";
   document.getElementById("fGenre").value=w&&w.genre?w.genre:(genreFilter||"");
   fillGenreList();
+  document.getElementById("fLabels").value=w&&w.labels?w.labels.join("・"):"";
   document.getElementById("fTotal").value=w?w.total:1;
   setsDraft=w?setsList(w).map(function(a){return new Set(a)}):[new Set()];
   document.getElementById("fSets").value=setsDraft.length;
   document.getElementById("fReason").value=w&&w.reason?w.reason:"";
   document.getElementById("fDeadline").value=w&&w.deadline?w.deadline:"";
   document.getElementById("fPrice").value=w&&w.price?w.price:"";
+  photoDraft=undefined;
+  setPhotoPreview(w&&photos[w.id]?photos[w.id]:null);
   document.getElementById("del").style.display=w?"block":"none";
   buildSets();
   document.getElementById("scrim").classList.add("on");
@@ -402,16 +432,22 @@ function openSheet(id){
 function closeSheet(){document.getElementById("scrim").classList.remove("on");document.getElementById("sheet").classList.remove("on")}
 function saveSheet(){
   var name=document.getElementById("fName").value.trim();
-  var total=Math.max(1,Math.min(200,parseInt(document.getElementById("fTotal").value,10)||1));
   if(!name){toast("作品名を入れてください");return}
+  var L=parseLabels();
+  var total=L?L.length:Math.max(1,Math.min(200,parseInt(document.getElementById("fTotal").value,10)||1));
   var sd=setsDraft.map(function(set){return Array.from(set).filter(function(v){return v>=1&&v<=total}).sort(function(a,b){return a-b})});
   if(!sd.length)sd=[[]];
   var obj={id:editId||uid(),name:name,genre:document.getElementById("fGenre").value.trim()||"未分類",total:total,setsData:sd,reason:document.getElementById("fReason").value.trim(),deadline:document.getElementById("fDeadline").value||"",price:Math.max(0,parseInt(document.getElementById("fPrice").value,10)||0)};
+  if(L)obj.labels=L;
   snapshot();
   if(editId){works=works.map(function(w){return w.id===editId?obj:w})}else{works.push(obj)}
+  if(photoDraft!==undefined){
+    if(photoDraft===null){delete photos[obj.id]}else{photos[obj.id]=photoDraft}
+    persistPhotos();
+  }
   persist();render();closeSheet();toast(editId?"保存しました":"追加しました");
 }
-function delSheet(){if(!editId)return;snapshot();works=works.filter(function(w){return w.id!==editId});persist();render();closeSheet();toast("削除しました（↩で戻せます）")}
+function delSheet(){if(!editId)return;snapshot();works=works.filter(function(w){return w.id!==editId});delete photos[editId];persistPhotos();persist();render();closeSheet();toast("削除しました（↩で戻せます）")}
 function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove("on")},1700)}
 document.getElementById("themeToggle").onclick=function(){var cur=document.documentElement.getAttribute("data-theme");var dark=cur?cur==="dark":matchMedia("(prefers-color-scheme:dark)").matches;document.documentElement.setAttribute("data-theme",dark?"light":"dark")};
 document.getElementById("fab").onclick=function(){openSheet(null)};
@@ -420,6 +456,9 @@ document.getElementById("save").onclick=saveSheet;
 document.getElementById("del").onclick=delSheet;
 document.getElementById("fTotal").oninput=buildSets;
 document.getElementById("fSets").oninput=buildSets;
+document.getElementById("fLabels").oninput=buildSets;
+document.getElementById("fPhoto").onchange=function(e){var f=e.target.files&&e.target.files[0];if(!f)return;shrinkImage(f,function(data){photoDraft=data;setPhotoPreview(data);toast("写真を付けました（保存で確定）")});e.target.value=""};
+document.getElementById("pDel").onclick=function(){photoDraft=null;setPhotoPreview(null);toast("写真を外しました（保存で確定）")};
 function stepTotal(d){var el=document.getElementById("fTotal");var v=Math.max(1,Math.min(200,(parseInt(el.value,10)||0)+d));el.value=v;buildSets()}
 function stepSets(d){var el=document.getElementById("fSets");var v=Math.max(1,Math.min(50,(parseInt(el.value,10)||0)+d));el.value=v;buildSets()}
 document.getElementById("tMinus").onclick=function(){stepTotal(-1)};
@@ -428,10 +467,10 @@ document.getElementById("sMinus").onclick=function(){stepSets(-1)};
 document.getElementById("sPlus").onclick=function(){stepSets(1)};
 ["fTotal","fPrice","fSets"].forEach(function(id){document.getElementById(id).addEventListener("wheel",function(e){e.preventDefault()},{passive:false})});
 document.getElementById("search").oninput=function(e){query=e.target.value;render()};
-document.getElementById("btnExport").onclick=function(){var box=document.getElementById("ioBox");box.style.display="block";document.getElementById("ioText").value=JSON.stringify(works);document.getElementById("ioText").scrollIntoView({behavior:"smooth"});toast("この文字列を保存しておけば復元できます")};
+document.getElementById("btnExport").onclick=function(){var box=document.getElementById("ioBox");box.style.display="block";var out=works.map(function(w){return photos[w.id]?Object.assign({},w,{photo:photos[w.id]}):w});document.getElementById("ioText").value=JSON.stringify(out);document.getElementById("ioText").scrollIntoView({behavior:"smooth"});toast("この文字列を保存しておけば復元できます")};
 document.getElementById("btnImport").onclick=function(){document.getElementById("ioBox").style.display="block";document.getElementById("ioText").focus()};
 document.getElementById("ioCopy").onclick=function(){var ta=document.getElementById("ioText");ta.select();try{document.execCommand("copy")}catch(e){}if(navigator.clipboard)navigator.clipboard.writeText(ta.value);toast("コピーしました")};
-document.getElementById("ioLoad").onclick=function(){try{var a=JSON.parse(document.getElementById("ioText").value);if(!Array.isArray(a))throw 0;snapshot();works=a;migrate();render();document.getElementById("ioBox").style.display="none";toast("読み込みました（↩で戻せます）")}catch(e){toast("読み込めませんでした（文字列を確認）")}};
+document.getElementById("ioLoad").onclick=function(){try{var a=JSON.parse(document.getElementById("ioText").value);if(!Array.isArray(a))throw 0;snapshot();a.forEach(function(w){if(w.photo){photos[w.id]=w.photo;delete w.photo}});persistPhotos();works=a;migrate();render();document.getElementById("ioBox").style.display="none";toast("読み込みました（↩で戻せます）")}catch(e){toast("読み込めませんでした（文字列を確認）")}};
 document.getElementById("undoBtn").onclick=undo;
 document.getElementById("redoBtn").onclick=redo;
 migrate();
