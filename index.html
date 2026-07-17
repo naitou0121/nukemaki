@@ -172,6 +172,27 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .foot a{color:var(--accent);text-decoration:none}
 .io textarea{width:100%;min-height:120px;background:var(--card);border:1px solid var(--line);
   border-radius:10px;padding:10px;font-size:12px;color:var(--ink);font-family:ui-monospace,monospace}
+/* calculator */
+.calcbtn{position:fixed;left:max(14px,env(safe-area-inset-left));bottom:calc(22px + env(safe-area-inset-bottom));width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink-soft);font-size:21px;line-height:1;box-shadow:var(--shadow);cursor:pointer;z-index:30}
+.calcbtn:active{transform:scale(.92)}
+.calc{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:calc(78px + env(safe-area-inset-bottom));width:236px;background:var(--ground);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 34px rgba(10,10,20,.3);padding:10px;z-index:31;display:none}
+.calc.on{display:block}
+.calc .cd{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:20px;text-align:right;font-variant-numeric:tabular-nums;min-height:42px;word-break:break-all;margin-bottom:8px;color:var(--ink)}
+.calc .cg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.calc .cg button{height:42px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:16px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums}
+.calc .cg button.op{color:var(--accent)}
+.calc .cg button.eq{background:var(--accent);border-color:var(--accent);color:#fff;grid-row:span 2}
+.calc .cg button.z2{grid-column:span 2}
+.calc .cg button:active{transform:scale(.93)}
+/* genre manager */
+.gmgr{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(320px,88vw);max-height:80vh;overflow:auto;background:var(--ground);border:1px solid var(--line);border-radius:14px;padding:16px;z-index:60;display:none;box-shadow:0 14px 40px rgba(10,10,20,.35)}
+.gmgr.on{display:block}
+.gmgr h3{margin:0 0 8px;font-size:15px}
+.grow{display:flex;align-items:center;justify-content:space-between;padding:8px 2px;border-bottom:1px solid var(--line);font-size:14px}
+.grow button{border:1px solid var(--red);background:transparent;color:var(--red);border-radius:7px;font-size:12px;padding:3px 9px;cursor:pointer}
+.gadd{display:flex;gap:8px;margin:12px 0}
+.gadd input{flex:1;min-width:0}
+.gadd .btn{flex:none;padding:11px 14px}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);
   background:var(--ink);color:var(--ground);padding:9px 16px;border-radius:999px;font-size:13px;
   opacity:0;transition:.2s;z-index:60;pointer-events:none}
@@ -225,9 +246,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   <label class="f" for="fName">作品名</label>
   <input class="t" id="fName" placeholder="例）薬屋のひとりごと" autocomplete="off">
 
-  <label class="f" for="fGenre">ジャンル</label>
-  <input class="t" id="fGenre" list="genreList" placeholder="青年 / 少年 / 女性 / ラノベ …" autocomplete="off">
-  <datalist id="genreList"></datalist>
+  <label class="f">ジャンル（タップで選択）<a id="gEdit" style="float:right;color:var(--accent);cursor:pointer;font-weight:400">⚙ ジャンル編集</a></label>
+  <div class="chips" id="gPick"></div>
 
   <label class="f" for="fTotal">既刊数（今出てる巻数）</label>
   <div class="stepper">
@@ -272,6 +292,23 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   </div>
 </div>
 
+<button class="calcbtn" id="calcBtn" aria-label="計算機">🧮</button>
+<div class="calc" id="calcPanel">
+  <div class="cd" id="cd">0</div>
+  <div class="cg" id="cg"></div>
+</div>
+
+<div class="scrim" id="gScrim" style="z-index:58"></div>
+<div class="gmgr" id="gMgr" role="dialog" aria-modal="true">
+  <h3>ジャンルを編集</h3>
+  <div id="gList"></div>
+  <div class="gadd">
+    <input class="t" id="gNew" placeholder="新しいジャンル名" autocomplete="off">
+    <button class="btn primary" id="gAdd">追加</button>
+  </div>
+  <button class="btn ghost" id="gClose" style="width:100%">閉じる</button>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -279,8 +316,10 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 var SEED=[{"id": "w1", "name": "呪術廻戦", "genre": "少年", "total": 30, "setsData": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]], "reason": "", "deadline": "", "price": 0}, {"id": "w2", "name": "薬屋のひとりごと", "genre": "女性", "total": 12, "setsData": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]], "reason": "アニメ2期", "deadline": "2026-08-01", "price": 0}, {"id": "w3", "name": "SPY×FAMILY", "genre": "少年", "total": 14, "setsData": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]], "reason": "", "deadline": "", "price": 3000}, {"id": "w4", "name": "チェンソーマン", "genre": "青年", "total": 18, "setsData": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]], "reason": "", "deadline": "", "price": 0}, {"id": "w5", "name": "ダンダダン", "genre": "少年", "total": 15, "setsData": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]], "reason": "アニメ化", "deadline": "", "price": 0}];
 try{if(!localStorage.getItem("nukemaki_seeded_sample")){localStorage.setItem("nukemaki_v1",JSON.stringify(SEED));localStorage.setItem("nukemaki_seeded_sample","1");}}catch(e){}
 
-var KEY="nukemaki_v1", PKEY="nukemaki_photos";
-var works=load(), photos=loadPhotos(), editId=null, setsDraft=[new Set()], photoDraft, query="", genreFilter="";
+var KEY="nukemaki_v1", PKEY="nukemaki_photos", GKEY="nukemaki_genres";
+var works=load(), photos=loadPhotos(), editId=null, setsDraft=[new Set()], photoDraft, selectedG="", query="", genreFilter="";
+var genres=(function(){var a=null;try{a=JSON.parse(localStorage.getItem(GKEY))}catch(e){}if(!Array.isArray(a)||!a.length)a=["青年","少年","女性","BL","TL","ラノベ","一般書"];return a})();
+function persistGenres(){try{localStorage.setItem(GKEY,JSON.stringify(genres))}catch(e){}}
 var undoStack=loadStack("nukemaki_undo"), redoStack=loadStack("nukemaki_redo");
 function load(){try{var a=JSON.parse(localStorage.getItem(KEY));return Array.isArray(a)?a:[]}catch(e){return[]}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(works))}
@@ -306,7 +345,8 @@ function migrate(){var ch=false;works.forEach(function(w){
   if(w.counts!==undefined){delete w.counts;ch=true}
   if(w.sets!==undefined){delete w.sets;ch=true}
   if(w.photo){photos[w.id]=w.photo;delete w.photo;persistPhotos();ch=true}
-});if(ch)persist()}
+});if(ch)persist();
+var gch=false;works.forEach(function(w){if(w.genre&&genres.indexOf(w.genre)<0){genres.push(w.genre);gch=true}});if(gch||!localStorage.getItem(GKEY))persistGenres()}
 function labelsOf(w){return (w.labels&&w.labels.length)?w.labels:null}
 function volName(w,v){var L=labelsOf(w);return L?(L[v-1]!==undefined?L[v-1]:v):v}
 function setsList(w){return (w.setsData&&w.setsData.length)?w.setsData:[[]]}
@@ -324,8 +364,12 @@ function fmtDate(dl){if(!dl)return "";var p=dl.split("-");return (+p[1])+"/"+(+p
 function yen(n){return "¥"+(Number(n)||0).toLocaleString("ja-JP")}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function genreCounts(){var m={};works.forEach(function(w){var g=w.genre||"未分類";m[g]=(m[g]||0)+1});return m}
-function renderGenres(){var box=document.getElementById("genres");var m=genreCounts();var order=["青年","少年","女性","BL","TL","ラノベ","一般書","未分類"];var keys=Object.keys(m).sort(function(a,b){var ia=order.indexOf(a),ib=order.indexOf(b);ia=ia<0?98:ia;ib=ib<0?98:ib;return ia-ib||a.localeCompare(b,"ja")});if(keys.length<1){box.style.display="none";box.innerHTML="";return}box.style.display="flex";var html='<span class="gchip'+(genreFilter===""?" on":"")+'" data-g="">すべて '+works.length+'</span>';keys.forEach(function(g){html+='<span class="gchip'+(genreFilter===g?" on":"")+'" data-g="'+esc(g)+'">'+esc(g)+' '+m[g]+'</span>'});box.innerHTML=html;Array.prototype.forEach.call(box.querySelectorAll(".gchip"),function(el){el.onclick=function(){genreFilter=el.getAttribute("data-g");renderGenres();render()}})}
-function fillGenreList(){var pre=["青年","少年","女性","BL","TL","ラノベ","一般書","その他"];var m=genreCounts();Object.keys(m).forEach(function(g){if(pre.indexOf(g)<0)pre.push(g)});document.getElementById("genreList").innerHTML=pre.map(function(g){return '<option value="'+esc(g)+'"></option>'}).join("")}
+function renderGenres(){var box=document.getElementById("genres");var m=genreCounts();var keys=genres.filter(function(g){return m[g]});Object.keys(m).forEach(function(g){if(keys.indexOf(g)<0)keys.push(g)});box.style.display="flex";var html='<span class="gchip'+(genreFilter===""?" on":"")+'" data-g="">すべて '+works.length+'</span>';keys.forEach(function(g){html+='<span class="gchip'+(genreFilter===g?" on":"")+'" data-g="'+esc(g)+'">'+esc(g)+' '+m[g]+'</span>'});html+='<span class="gchip" data-g="__mgr__">⚙</span>';box.innerHTML=html;Array.prototype.forEach.call(box.querySelectorAll(".gchip"),function(el){el.onclick=function(){var g=el.getAttribute("data-g");if(g==="__mgr__"){openGMgr();return}genreFilter=g;renderGenres();render()}})}
+function renderGPick(){var box=document.getElementById("gPick");var list=genres.slice();if(selectedG&&list.indexOf(selectedG)<0)list.push(selectedG);box.innerHTML=list.map(function(g){return '<button type="button" class="gchip'+(g===selectedG?" on":"")+'" data-g="'+esc(g)+'" style="font-size:13.5px;padding:8px 13px">'+esc(g)+'</button>'}).join("");Array.prototype.forEach.call(box.querySelectorAll(".gchip"),function(el){el.onclick=function(){selectedG=el.getAttribute("data-g");renderGPick()}})}
+function openGMgr(){renderGMgr();document.getElementById("gScrim").classList.add("on");document.getElementById("gMgr").classList.add("on")}
+function closeGMgr(){document.getElementById("gScrim").classList.remove("on");document.getElementById("gMgr").classList.remove("on");renderGenres();if(document.getElementById("sheet").classList.contains("on"))renderGPick()}
+function renderGMgr(){var m=genreCounts();document.getElementById("gList").innerHTML=genres.map(function(g,i){return '<div class="grow"><span>'+esc(g)+(m[g]?' <span style="color:var(--ink-faint);font-size:12px">('+m[g]+')</span>':'')+'</span><button type="button" data-i="'+i+'">削除</button></div>'}).join("")||'<div style="color:var(--ink-faint);font-size:13px;padding:8px 0">ジャンルがありません。下から追加してください</div>';Array.prototype.forEach.call(document.getElementById("gList").querySelectorAll("button"),function(el){el.onclick=function(){var i=+el.getAttribute("data-i");var g=genres[i];genres.splice(i,1);persistGenres();renderGMgr();toast("「"+g+"」を消しました（登録済み作品のタグは残ります）")}})}
+function addGenre(){var v=document.getElementById("gNew").value.trim();if(!v){toast("ジャンル名を入れてください");return}if(genres.indexOf(v)>-1){toast("もうあります");return}genres.push(v);persistGenres();document.getElementById("gNew").value="";renderGMgr();toast("「"+v+"」を追加しました")}
 function render(){
   var l=document.getElementById("list");
   renderGenres();
@@ -413,8 +457,8 @@ function openSheet(id){
   var w=id?works.filter(function(x){return x.id===id})[0]:null;
   document.getElementById("sheetTitle").textContent=w?"編集":"作品を追加";
   document.getElementById("fName").value=w?w.name:"";
-  document.getElementById("fGenre").value=w&&w.genre?w.genre:(genreFilter||"");
-  fillGenreList();
+  selectedG=w&&w.genre?w.genre:(genreFilter||genres[0]||"未分類");
+  renderGPick();
   document.getElementById("fLabels").value=w&&w.labels?w.labels.join("・"):"";
   document.getElementById("fTotal").value=w?w.total:1;
   setsDraft=w?setsList(w).map(function(a){return new Set(a)}):[new Set()];
@@ -437,7 +481,7 @@ function saveSheet(){
   var total=L?L.length:Math.max(1,Math.min(200,parseInt(document.getElementById("fTotal").value,10)||1));
   var sd=setsDraft.map(function(set){return Array.from(set).filter(function(v){return v>=1&&v<=total}).sort(function(a,b){return a-b})});
   if(!sd.length)sd=[[]];
-  var obj={id:editId||uid(),name:name,genre:document.getElementById("fGenre").value.trim()||"未分類",total:total,setsData:sd,reason:document.getElementById("fReason").value.trim(),deadline:document.getElementById("fDeadline").value||"",price:Math.max(0,parseInt(document.getElementById("fPrice").value,10)||0)};
+  var obj={id:editId||uid(),name:name,genre:selectedG||"未分類",total:total,setsData:sd,reason:document.getElementById("fReason").value.trim(),deadline:document.getElementById("fDeadline").value||"",price:Math.max(0,parseInt(document.getElementById("fPrice").value,10)||0)};
   if(L)obj.labels=L;
   snapshot();
   if(editId){works=works.map(function(w){return w.id===editId?obj:w})}else{works.push(obj)}
@@ -473,6 +517,43 @@ document.getElementById("ioCopy").onclick=function(){var ta=document.getElementB
 document.getElementById("ioLoad").onclick=function(){try{var a=JSON.parse(document.getElementById("ioText").value);if(!Array.isArray(a))throw 0;snapshot();a.forEach(function(w){if(w.photo){photos[w.id]=w.photo;delete w.photo}});persistPhotos();works=a;migrate();render();document.getElementById("ioBox").style.display="none";toast("読み込みました（↩で戻せます）")}catch(e){toast("読み込めませんでした（文字列を確認）")}};
 document.getElementById("undoBtn").onclick=undo;
 document.getElementById("redoBtn").onclick=redo;
+document.getElementById("gEdit").onclick=openGMgr;
+document.getElementById("gScrim").onclick=closeGMgr;
+document.getElementById("gClose").onclick=closeGMgr;
+document.getElementById("gAdd").onclick=addGenre;
+document.getElementById("gNew").addEventListener("keydown",function(e){if(e.key==="Enter")addGenre()});
+
+/* ---- 計算機 ---- */
+var calcExpr="";
+function calcRender(){document.getElementById("cd").textContent=calcExpr||"0"}
+function calcEval(){var s=calcExpr.replace(/×/g,"*").replace(/÷/g,"/").replace(/−/g,"-");if(!/^[0-9+\-*/. ]*$/.test(s)||!s)return;try{var r=Function('"use strict";return('+s+')')();if(typeof r==="number"&&isFinite(r)){r=Math.round(r*100000)/100000;calcExpr=String(r)}else{calcExpr=""}}catch(e){}calcRender()}
+function calcPress(k){
+  if(k==="C"){calcExpr=""}
+  else if(k==="⌫"){calcExpr=calcExpr.slice(0,-1)}
+  else if(k==="＝"){calcEval();return}
+  else{
+    if(/[+×÷−]/.test(k)&&(calcExpr===""||/[+×÷−.]$/.test(calcExpr))){
+      if(calcExpr&&/[+×÷−]$/.test(calcExpr))calcExpr=calcExpr.slice(0,-1)+k;
+    }else if(k==="."&&/\.\d*$/.test(calcExpr.split(/[+×÷−]/).pop()+".")&&/\./.test(calcExpr.split(/[+×÷−]/).pop())){
+      /* 同じ数の2個目の小数点は無視 */
+    }else{calcExpr+=k}
+  }
+  calcRender();
+}
+(function(){
+  var keys=["C","⌫","÷","×","7","8","9","−","4","5","6","+","1","2","3","＝","0",".","00"];
+  var cg=document.getElementById("cg");
+  keys.forEach(function(k){
+    var b=document.createElement("button");b.type="button";b.textContent=k;
+    if(/[÷×−+C⌫]/.test(k)&&k.length===1)b.className="op";
+    if(k==="＝")b.className="eq";
+    if(k==="0")b.className="z2";
+    b.onclick=function(){calcPress(k)};
+    cg.appendChild(b);
+  });
+})();
+document.getElementById("calcBtn").onclick=function(){document.getElementById("calcPanel").classList.toggle("on")};
+
 migrate();
 render();
 </script>
