@@ -175,11 +175,11 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 /* calculator */
 .calcbtn{position:fixed;left:max(14px,env(safe-area-inset-left));bottom:calc(22px + env(safe-area-inset-bottom));width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink-soft);font-size:21px;line-height:1;box-shadow:var(--shadow);cursor:pointer;z-index:30}
 .calcbtn:active{transform:scale(.92)}
-.calc{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:calc(78px + env(safe-area-inset-bottom));width:236px;background:var(--ground);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 34px rgba(10,10,20,.3);padding:10px;z-index:31;display:none}
+.calc{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:calc(78px + env(safe-area-inset-bottom));width:min(320px,calc(100vw - 24px));background:var(--ground);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 34px rgba(10,10,20,.3);padding:10px;z-index:31;display:none}
 .calc.on{display:block}
-.calc .cd{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:20px;text-align:right;font-variant-numeric:tabular-nums;min-height:42px;word-break:break-all;margin-bottom:8px;color:var(--ink)}
-.calc .cg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.calc .cg button{height:42px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:16px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums}
+.calc .cd{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:26px;text-align:right;font-variant-numeric:tabular-nums;min-height:42px;word-break:break-all;margin-bottom:8px;color:var(--ink)}
+.calc .cg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.calc .cg button{height:54px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:19px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums}
 .calc .cg button.op{color:var(--accent)}
 .calc .cg button.eq{background:var(--accent);border-color:var(--accent);color:#fff;grid-row:span 2}
 .calc .cg button.z2{grid-column:span 2}
