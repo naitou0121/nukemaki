@@ -174,9 +174,9 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .io textarea{width:100%;min-height:120px;background:var(--card);border:1px solid var(--line);
   border-radius:10px;padding:10px;font-size:12px;color:var(--ink);font-family:ui-monospace,monospace}
 /* calculator */
-.calcbtn{position:fixed;left:max(14px,env(safe-area-inset-left));bottom:calc(22px + env(safe-area-inset-bottom));width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink-soft);font-size:21px;line-height:1;box-shadow:var(--shadow);cursor:pointer;z-index:30}
+.calcbtn{position:fixed;left:max(14px,env(safe-area-inset-left));bottom:calc(22px + env(safe-area-inset-bottom));width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink-soft);font-size:21px;line-height:1;box-shadow:var(--shadow);cursor:pointer;z-index:55}
 .calcbtn:active{transform:scale(.92)}
-.calc{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:calc(78px + env(safe-area-inset-bottom));width:min(320px,calc(100vw - 24px));background:var(--ground);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 34px rgba(10,10,20,.3);padding:10px;z-index:31;display:none}
+.calc{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:calc(78px + env(safe-area-inset-bottom));width:min(320px,calc(100vw - 24px));background:var(--ground);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 34px rgba(10,10,20,.3);padding:10px;z-index:56;display:none}
 .calc.on{display:block}
 .calc .cd{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:26px;text-align:right;font-variant-numeric:tabular-nums;min-height:42px;word-break:break-all;margin-bottom:8px;color:var(--ink)}
 .calc .cg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
@@ -276,8 +276,12 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   <label class="f" for="fDeadline">締切日（揃えたい日）</label>
   <input class="t" id="fDeadline" type="date">
 
-  <label class="f" for="fPrice">仕入れ値（円・任意）</label>
-  <input class="t" id="fPrice" type="number" inputmode="numeric" min="0" placeholder="例）1200">
+  <label class="f" for="fPrice">仕入れ値（累計・円）</label>
+  <input class="t" id="fPrice" type="number" inputmode="numeric" min="0" placeholder="累計額（自動で足されていく）">
+  <div class="gadd" style="margin:8px 0 0">
+    <input class="t" id="fPriceAdd" type="number" inputmode="numeric" min="0" placeholder="今回買った額">
+    <button type="button" class="btn ghost" id="priceAddBtn" style="flex:none;padding:11px 16px">＋足す</button>
+  </div>
 
   <label class="f">写真（任意・1枚）</label>
   <div class="photorow">
@@ -467,6 +471,7 @@ function openSheet(id){
   document.getElementById("fReason").value=w&&w.reason?w.reason:"";
   document.getElementById("fDeadline").value=w&&w.deadline?w.deadline:"";
   document.getElementById("fPrice").value=w&&w.price?w.price:"";
+  document.getElementById("fPriceAdd").value="";
   photoDraft=undefined;
   setPhotoPreview(w&&photos[w.id]?photos[w.id]:null);
   document.getElementById("del").style.display=w?"block":"none";
@@ -511,7 +516,9 @@ document.getElementById("tMinus").onclick=function(){stepTotal(-1)};
 document.getElementById("tPlus").onclick=function(){stepTotal(1)};
 document.getElementById("sMinus").onclick=function(){stepSets(-1)};
 document.getElementById("sPlus").onclick=function(){stepSets(1)};
-["fTotal","fPrice","fSets"].forEach(function(id){document.getElementById(id).addEventListener("wheel",function(e){e.preventDefault()},{passive:false})});
+["fTotal","fPrice","fSets","fPriceAdd"].forEach(function(id){document.getElementById(id).addEventListener("wheel",function(e){e.preventDefault()},{passive:false})});
+function priceAdd(v){var fp=document.getElementById("fPrice");fp.value=(parseInt(fp.value,10)||0)+v;}
+document.getElementById("priceAddBtn").onclick=function(){var el=document.getElementById("fPriceAdd");var v=parseInt(el.value,10)||0;if(!v){toast("足す額を入れてください");return}priceAdd(v);el.value="";toast("仕入れ値に ¥"+v.toLocaleString("ja-JP")+" 足しました（保存で確定）")};
 document.getElementById("search").oninput=function(e){query=e.target.value;render()};
 document.getElementById("btnExport").onclick=function(){var box=document.getElementById("ioBox");box.style.display="block";var out=works.map(function(w){return photos[w.id]?Object.assign({},w,{photo:photos[w.id]}):w});document.getElementById("ioText").value=JSON.stringify(out);document.getElementById("ioText").scrollIntoView({behavior:"smooth"});toast("この文字列を保存しておけば復元できます")};
 document.getElementById("btnImport").onclick=function(){document.getElementById("ioBox").style.display="block";document.getElementById("ioText").focus()};
@@ -553,6 +560,16 @@ function calcPress(k){
     b.onclick=function(){calcPress(k)};
     cg.appendChild(b);
   });
+  var tb=document.createElement("button");tb.type="button";tb.textContent="＝を仕入れ値に足す";tb.className="op";tb.style.gridColumn="span 4";
+  tb.onclick=function(){
+    calcEval();
+    var v=Math.round(parseFloat(calcExpr));
+    if(!calcExpr||!isFinite(v)){toast("計算結果がありません");return}
+    if(document.getElementById("sheet").classList.contains("on")){
+      priceAdd(v);toast("仕入れ値に ¥"+v.toLocaleString("ja-JP")+" 足しました（保存で確定）");
+    }else{toast("作品の編集画面を開いている時に使えます")}
+  };
+  cg.appendChild(tb);
 })();
 document.getElementById("calcBtn").onclick=function(){document.getElementById("calcPanel").classList.toggle("on")};
 
