@@ -216,8 +216,6 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   </div>
   <div class="summary">
     <span class="hot">🔴 要対応 <b id="sHot">0</b></span>
-    <span>📚 全 <b id="sAll">0</b> 作品</span>
-    <span>✅ 揃い <b id="sDone">0</b></span>
     <span>💰 <b id="sYen" class="tnum">¥0</b></span>
   </div>
   <input class="search" id="search" placeholder="作品名でしぼる…" autocomplete="off">
@@ -389,8 +387,6 @@ function render(){
   var hot=0,done=0,sum=0;
   works.forEach(function(w){var s=statusOf(w);if(s.lv==="over"||s.lv==="urgent")hot++;if(s.lv==="done")done++;sum+=Number(w.price)||0});
   document.getElementById("sHot").textContent=hot;
-  document.getElementById("sAll").textContent=works.length;
-  document.getElementById("sDone").textContent=done;
   document.getElementById("sYen").textContent=yen(sum);
   var rows=works.map(function(w){return {w:w,s:statusOf(w)}});
   var q=query.trim();
