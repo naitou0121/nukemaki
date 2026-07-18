@@ -377,7 +377,7 @@ function genreCounts(){var m={};works.forEach(function(w){var g=w.genre||"未分
 function renderGenres(){var box=document.getElementById("genres");var m=genreCounts();var keys=genres.filter(function(g){return m[g]});Object.keys(m).forEach(function(g){if(keys.indexOf(g)<0)keys.push(g)});box.style.display="flex";var nStar=works.filter(function(w){return w.star}).length;
 var nCheck=works.filter(function(w){return w.check}).length;
 var html='<span class="gchip'+(starOnly?" on":"")+'" data-g="__star__">★ '+nStar+'</span>';
-html+='<span class="gchip'+(checkOnly?" on":"")+'" data-g="__check__">🔍 '+nCheck+'</span>';
+html+='<span class="gchip'+(checkOnly?" on":"")+'" data-g="__check__">⚠️ '+nCheck+'</span>';
 html+='<span class="gchip'+(sortMode==="deadline"?" on":"")+'" data-g="__sort__">⏰近い順</span>';
 html+='<span class="gchip'+(genreFilter===""?" on":"")+'" data-g="">すべて '+works.length+'</span>';keys.forEach(function(g){html+='<span class="gchip'+(genreFilter===g?" on":"")+'" data-g="'+esc(g)+'">'+esc(g)+' '+m[g]+'</span>'});html+='<span class="gchip" data-g="__mgr__">⚙</span>';box.innerHTML=html;Array.prototype.forEach.call(box.querySelectorAll(".gchip"),function(el){el.onclick=function(){var g=el.getAttribute("data-g");if(g==="__mgr__"){openGMgr();return}if(g==="__star__"){starOnly=!starOnly;renderGenres();render();return}if(g==="__check__"){checkOnly=!checkOnly;renderGenres();render();return}if(g==="__sort__"){sortMode=(sortMode==="deadline"?"std":"deadline");renderGenres();render();return}genreFilter=g;renderGenres();render()}})}
 function renderGPick(){var box=document.getElementById("gPick");var list=genres.slice();if(selectedG&&list.indexOf(selectedG)<0)list.push(selectedG);box.innerHTML=list.map(function(g){return '<button type="button" class="gchip'+(g===selectedG?" on":"")+'" data-g="'+esc(g)+'" style="font-size:13.5px;padding:8px 13px">'+esc(g)+'</button>'}).join("");Array.prototype.forEach.call(box.querySelectorAll(".gchip"),function(el){el.onclick=function(){selectedG=el.getAttribute("data-g");renderGPick()}})}
@@ -434,10 +434,10 @@ function render(){
     var thumb=photos[w.id]?'<img class="cthumb" src="'+photos[w.id]+'" alt="">':"";
     var c=document.createElement("div");
     c.className="card lv-"+s.lv;
-    c.innerHTML='<div class="c-top">'+thumb+'<div class="c-name" style="flex:1">'+esc(w.name)+'</div><span class="checkb'+(w.check?" on":"")+'" title="家で在庫確認">🔍</span><span class="starb'+(w.star?" on":"")+'">'+(w.star?"★":"☆")+'</span><span class="pill '+s.cls+'">'+s.label+'</span></div>'+missHtml+'<div class="bar"><i style="width:'+rate+'%"></i></div>'+setLine+(metaBits.length?'<div class="meta">'+metaBits.join("")+'</div>':"");
+    c.innerHTML='<div class="c-top">'+thumb+'<div class="c-name" style="flex:1">'+esc(w.name)+'</div><span class="checkb'+(w.check?" on":"")+'" title="家で在庫確認">⚠️</span><span class="starb'+(w.star?" on":"")+'">'+(w.star?"★":"☆")+'</span><span class="pill '+s.cls+'">'+s.label+'</span></div>'+missHtml+'<div class="bar"><i style="width:'+rate+'%"></i></div>'+setLine+(metaBits.length?'<div class="meta">'+metaBits.join("")+'</div>':"");
     c.onclick=function(){openSheet(w.id)};
     c.querySelector(".starb").onclick=function(e){e.stopPropagation();w.star=!w.star;persist();render()};
-    c.querySelector(".checkb").onclick=function(e){e.stopPropagation();w.check=!w.check;persist();render();toast(w.check?"🔍 家で確認リストに入れました":"🔍 確認済みにしました")};
+    c.querySelector(".checkb").onclick=function(e){e.stopPropagation();w.check=!w.check;persist();render();toast(w.check?"⚠️ 家で確認リストに入れました":"⚠️ 確認済みにしました")};
     l.appendChild(c);
   });
 }
