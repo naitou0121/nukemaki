@@ -70,10 +70,16 @@ h1{font-size:18px;font-weight:700;margin:0;letter-spacing:.01em}
   background:var(--card);border:1px solid var(--line);border-radius:11px;
   padding:9px 12px;font-size:15px;color:var(--ink)}
 .search::placeholder{color:var(--ink-faint)}
-.genres{display:flex;gap:7px;overflow-x:auto;margin:10px auto 0;max-width:520px;padding-bottom:3px;-webkit-overflow-scrolling:touch}
+.genres{display:flex;align-items:center;gap:7px;margin:10px auto 0;max-width:520px;padding-bottom:3px}
 .gchip{flex:none;font-size:12.5px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
   background:var(--card);color:var(--ink-soft);cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums}
 .gchip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.viewsel{flex:1;min-width:0;font-size:13.5px;padding:8px 34px 8px 14px;border-radius:999px;
+  border:1px solid var(--line);background-color:var(--card);color:var(--ink);cursor:pointer;
+  -webkit-appearance:none;appearance:none;font-variant-numeric:tabular-nums;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%238a8f9c' d='M0 0h12L6 8z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 13px center}
+.genres .mgr{flex:none}
 .gtag{font-size:11px;color:var(--accent);border:1px solid var(--accent-soft);background:var(--accent-soft);
   border-radius:6px;padding:1px 7px}
 
@@ -326,7 +332,7 @@ var SEED=[{"id": "w1", "name": "呪術廻戦", "genre": "少年", "total": 30, "
 try{if(!localStorage.getItem("nukemaki_seeded_sample")){localStorage.setItem("nukemaki_v1",JSON.stringify(SEED));localStorage.setItem("nukemaki_seeded_sample","1");}}catch(e){}
 
 var KEY="nukemaki_v1", PKEY="nukemaki_photos", GKEY="nukemaki_genres";
-var works=load(), photos=loadPhotos(), editId=null, setsDraft=[new Set()], photoDraft, selectedG="", query="", genreFilter="", starOnly=false, checkOnly=false, sortMode="std";
+var works=load(), photos=loadPhotos(), editId=null, setsDraft=[new Set()], photoDraft, selectedG="", query="", view="";
 var genres=(function(){var a=null;try{a=JSON.parse(localStorage.getItem(GKEY))}catch(e){}if(!Array.isArray(a)||!a.length)a=["青年","少年","女性","BL","TL","ラノベ","一般書"];return a})();
 function persistGenres(){try{localStorage.setItem(GKEY,JSON.stringify(genres))}catch(e){}}
 var undoStack=loadStack("nukemaki_undo"), redoStack=loadStack("nukemaki_redo");
@@ -376,10 +382,14 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;
 function genreCounts(){var m={};works.forEach(function(w){var g=w.genre||"未分類";m[g]=(m[g]||0)+1});return m}
 function renderGenres(){var box=document.getElementById("genres");var m=genreCounts();var keys=genres.filter(function(g){return m[g]});Object.keys(m).forEach(function(g){if(keys.indexOf(g)<0)keys.push(g)});box.style.display="flex";var nStar=works.filter(function(w){return w.star}).length;
 var nCheck=works.filter(function(w){return w.check}).length;
-var html='<span class="gchip'+(starOnly?" on":"")+'" data-g="__star__">★ '+nStar+'</span>';
-html+='<span class="gchip'+(checkOnly?" on":"")+'" data-g="__check__">⚠️ '+nCheck+'</span>';
-html+='<span class="gchip'+(sortMode==="deadline"?" on":"")+'" data-g="__sort__">⏰近い順</span>';
-html+='<span class="gchip'+(genreFilter===""?" on":"")+'" data-g="">すべて '+works.length+'</span>';keys.forEach(function(g){html+='<span class="gchip'+(genreFilter===g?" on":"")+'" data-g="'+esc(g)+'">'+esc(g)+' '+m[g]+'</span>'});html+='<span class="gchip" data-g="__mgr__">⚙</span>';box.innerHTML=html;Array.prototype.forEach.call(box.querySelectorAll(".gchip"),function(el){el.onclick=function(){var g=el.getAttribute("data-g");if(g==="__mgr__"){openGMgr();return}if(g==="__star__"){starOnly=!starOnly;renderGenres();render();return}if(g==="__check__"){checkOnly=!checkOnly;renderGenres();render();return}if(g==="__sort__"){sortMode=(sortMode==="deadline"?"std":"deadline");renderGenres();render();return}genreFilter=g;renderGenres();render()}})}
+var o='<option value=""'+(view===""?" selected":"")+'>すべて '+works.length+'</option>';
+o+='<option value="__star__"'+(view==="__star__"?" selected":"")+'>★ 星つき '+nStar+'</option>';
+o+='<option value="__deadline__"'+(view==="__deadline__"?" selected":"")+'>⏰ 締切が近い順</option>';
+o+='<option value="__check__"'+(view==="__check__"?" selected":"")+'>⚠️ 要確認 '+nCheck+'</option>';
+keys.forEach(function(g){o+='<option value="'+esc(g)+'"'+(view===g?" selected":"")+'>'+esc(g)+' '+m[g]+'</option>'});
+box.innerHTML='<select class="viewsel" id="viewSel" aria-label="表示の絞り込み・並べ替え">'+o+'</select><span class="gchip mgr" data-g="__mgr__">⚙</span>';
+document.getElementById("viewSel").onchange=function(){view=this.value;render()};
+box.querySelector('[data-g="__mgr__"]').onclick=function(){openGMgr()}}
 function renderGPick(){var box=document.getElementById("gPick");var list=genres.slice();if(selectedG&&list.indexOf(selectedG)<0)list.push(selectedG);box.innerHTML=list.map(function(g){return '<button type="button" class="gchip'+(g===selectedG?" on":"")+'" data-g="'+esc(g)+'" style="font-size:13.5px;padding:8px 13px">'+esc(g)+'</button>'}).join("");Array.prototype.forEach.call(box.querySelectorAll(".gchip"),function(el){el.onclick=function(){selectedG=el.getAttribute("data-g");renderGPick()}})}
 function openGMgr(){renderGMgr();document.getElementById("gScrim").classList.add("on");document.getElementById("gMgr").classList.add("on")}
 function closeGMgr(){document.getElementById("gScrim").classList.remove("on");document.getElementById("gMgr").classList.remove("on");renderGenres();if(document.getElementById("sheet").classList.contains("on"))renderGPick()}
@@ -396,10 +406,10 @@ function render(){
   var rows=works.map(function(w){return {w:w,s:statusOf(w)}});
   var q=query.trim();
   if(q)rows=rows.filter(function(r){return r.w.name.indexOf(q)>-1});
-  if(genreFilter)rows=rows.filter(function(r){return (r.w.genre||"未分類")===genreFilter});
-  if(starOnly)rows=rows.filter(function(r){return r.w.star});
-  if(checkOnly)rows=rows.filter(function(r){return r.w.check});
-  if(sortMode==="deadline"){
+  if(view==="__star__")rows=rows.filter(function(r){return r.w.star});
+  else if(view==="__check__")rows=rows.filter(function(r){return r.w.check});
+  else if(view&&view.slice(0,2)!=="__")rows=rows.filter(function(r){return (r.w.genre||"未分類")===view});
+  if(view==="__deadline__"){
     rows.sort(function(a,b){
       function k(r){if(r.s.lv==="done")return 1e9;var d=daysLeft(r.w.deadline);return d===null?1e8:d}
       return k(a)-k(b)||a.w.name.localeCompare(b.w.name,"ja");
@@ -486,7 +496,7 @@ function openSheet(id){
   var w=id?works.filter(function(x){return x.id===id})[0]:null;
   document.getElementById("sheetTitle").textContent=w?"編集":"作品を追加";
   document.getElementById("fName").value=w?w.name:"";
-  selectedG=w&&w.genre?w.genre:(genreFilter||genres[0]||"未分類");
+  selectedG=w&&w.genre?w.genre:((view&&view.slice(0,2)!=="__"&&view)||genres[0]||"未分類");
   renderGPick();
   document.getElementById("fLabels").value=w&&w.labels?w.labels.join("・"):"";
   document.getElementById("fTotal").value=w?w.total:1;
