@@ -263,12 +263,13 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   <label class="f" for="fTotal">既刊数（今出てる巻数）</label>
   <div class="stepper">
     <button type="button" id="tMinus" aria-label="1減らす">−</button>
-    <input class="t" id="fTotal" type="number" inputmode="numeric" min="1" max="200" value="1">
+    <input class="t" id="fTotal" type="number" inputmode="numeric" min="0" max="200" value="1">
     <button type="button" id="tPlus" aria-label="1増やす">＋</button>
   </div>
 
-  <label class="f" for="fLabels">巻の名前（数字じゃない時だけ・「・」区切り）</label>
-  <input class="t" id="fLabels" placeholder="例）上・下　／　綿・祟・鬼・暇" autocomplete="off">
+  <label class="f" for="fLabels">追加の巻（番外・上下巻など・「・」区切り）</label>
+  <input class="t" id="fLabels" placeholder="例）16.5　／　上・下　／　綿・祟・鬼・暇" autocomplete="off">
+  <div class="hint">既刊数と足し算されます。既刊数を0にすれば名前だけの巻マスになります</div>
 
   <label class="f" for="fSets">作るセット数</label>
   <div class="stepper">
@@ -365,6 +366,11 @@ function migrate(){var ch=false;works.forEach(function(w){
 });if(ch)persist();
 var gch=false;works.forEach(function(w){if(w.genre&&genres.indexOf(w.genre)<0){genres.push(w.genre);gch=true}});if(gch||!localStorage.getItem(GKEY))persistGenres()}
 function labelsOf(w){return (w.labels&&w.labels.length)?w.labels:null}
+/* ラベル配列の先頭にある「1,2,3…」の連番部分＝既刊数。残りが追加巻（16.5・上・下など） */
+function numPrefix(w){var L=labelsOf(w);if(!L)return w.total||0;var n=0;while(n<L.length&&L[n]===String(n+1))n++;return n}
+function extraLabels(w){var L=labelsOf(w);return L?L.slice(numPrefix(w)):[]}
+/* 既刊数n＋追加巻extras → ラベル配列。追加巻が無ければnull（＝従来どおり数字だけ） */
+function mkLabels(n,extras){if(!extras||!extras.length)return null;var a=[];for(var i=1;i<=n;i++)a.push(String(i));return a.concat(extras)}
 function volName(w,v){var L=labelsOf(w);return L?(L[v-1]!==undefined?L[v-1]:v):v}
 function setsList(w){return (w.setsData&&w.setsData.length)?w.setsData:[[]]}
 function nSets(w){return setsList(w).length}
@@ -376,7 +382,15 @@ function today(){var d=new Date();return new Date(d.getFullYear(),d.getMonth(),d
 function daysLeft(dl){if(!dl)return null;var p=dl.split("-");var t=new Date(+p[0],+p[1]-1,+p[2]);return Math.round((t-today())/86400000)}
 function statusOf(w){if(allDone(w))return {lv:"done",cls:"done",label:"揃い ✅",rank:5,d:9999};var d=daysLeft(w.deadline);if(d===null)return {lv:"nodate",cls:"nodate",label:"締切未設定",rank:3,d:8000};if(d<0)return {lv:"over",cls:"over",label:"期限切れ "+(-d)+"日",rank:0,d:d};if(d<=14)return {lv:"urgent",cls:"urgent",label:"残 "+d+"日",rank:1,d:d};if(d<=30)return {lv:"soon",cls:"soon",label:"残 "+d+"日",rank:2,d:d};return {lv:"ok",cls:"nodate",label:"残 "+d+"日",rank:4,d:d}}
 function rangeFmt(arr){if(!arr.length)return "";var out=[],s=arr[0],p=arr[0];for(var i=1;i<=arr.length;i++){if(arr[i]===p+1){p=arr[i];continue}out.push(s===p?(""+s):(s+"-"+p));s=arr[i];p=arr[i]}return out.join(",")}
-function missFmt(w,volArr){var L=labelsOf(w);if(L)return volArr.map(function(v){return volName(w,v)}).join("・");return rangeFmt(volArr).replace(/,/g,"・")}
+/* 数字の巻は「3-5」と圧縮し、追加巻は名前で並べる */
+function missFmt(w,volArr){
+  var L=labelsOf(w);if(!L)return rangeFmt(volArr).replace(/,/g,"・");
+  var np=numPrefix(w);
+  var nums=volArr.filter(function(v){return v<=np});
+  var ex=volArr.filter(function(v){return v>np}).map(function(v){return volName(w,v)});
+  var a=[];if(nums.length)a.push(rangeFmt(nums).replace(/,/g,"・"));if(ex.length)a.push(ex.join("・"));
+  return a.join("・");
+}
 function fmtDate(dl){if(!dl)return "";var p=dl.split("-");return (+p[1])+"/"+(+p[2])}
 function yen(n){return "¥"+(Number(n)||0).toLocaleString("ja-JP")}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -438,7 +452,8 @@ function render(){
       }).join("");
       missHtml='<div class="setlist">'+lines+'</div>';
     }
-    var unit=labelsOf(w)?"全"+w.total+"冊":"既刊 "+w.total;
+    var np=numPrefix(w),ex=extraLabels(w).length;
+    var unit=ex?(np?"既刊 "+np+" ＋"+ex:"全"+w.total+"冊"):"既刊 "+w.total;
     var setLine=n>1?'<div class="rate tnum">'+n+'セット ・ 完成 '+comp+'/'+n+' ・ '+unit+'</div>':'<div class="rate tnum">'+unit+' ・ '+totalOwned(w)+'/'+w.total+' 冊（'+rate+'%）</div>';
     var metaBits=[];
     if(w.genre)metaBits.push('<span class="gtag">'+esc(w.genre)+'</span>');
@@ -460,16 +475,17 @@ var draftHist=[];
 function draftSnap(){draftHist.push(JSON.stringify(setsDraft.map(function(a){return Array.from(a)})));if(draftHist.length>40)draftHist.shift();refreshDraftUndo()}
 function draftUndo(){if(!draftHist.length){toast("戻すマス操作がありません");return}var a=JSON.parse(draftHist.pop());setsDraft=a.map(function(x){return new Set(x)});document.getElementById("fSets").value=setsDraft.length;buildSets();refreshDraftUndo();toast("↩ マス操作を1つ戻しました")}
 function refreshDraftUndo(){var b=document.getElementById("draftUndo");if(b)b.disabled=!draftHist.length}
-function parseLabels(){var s=document.getElementById("fLabels").value.trim();if(!s)return null;var a=s.split(/[・,、.\s/]+/).filter(function(x){return x});return a.length?a:null}
-function fTotalVal(){var L=parseLabels();if(L)return L.length;return Math.max(0,Math.min(200,parseInt(document.getElementById("fTotal").value,10)||0))}
+/* 追加巻の入力。「.」は区切りにしない（16.5 を割らないため） */
+function parseExtras(){var s=document.getElementById("fLabels").value.trim();if(!s)return null;var a=s.split(/[・,、\s/]+/).filter(function(x){return x});return a.length?a:null}
+function fNumVal(){return Math.max(0,Math.min(200,parseInt(document.getElementById("fTotal").value,10)||0))}
+function fTotalVal(){var E=parseExtras();return fNumVal()+(E?E.length:0)}
 function syncSets(n){n=Math.max(1,Math.min(50,n||1));if(n!==setsDraft.length)draftSnap();while(setsDraft.length<n)setsDraft.push(new Set());while(setsDraft.length>n)setsDraft.pop()}
 function buildSets(){
-  var L=parseLabels();
+  var L=mkLabels(fNumVal(),parseExtras());
   var t=fTotalVal();
-  if(L)document.getElementById("fTotal").value=t;
   syncSets(parseInt(document.getElementById("fSets").value,10)||1);
   var wrap=document.getElementById("setsWrap");
-  if(!t){wrap.innerHTML='<span class="chip-empty">既刊数（または巻の名前）を入れると巻マスが出ます</span>';return}
+  if(!t){wrap.innerHTML='<span class="chip-empty">既刊数（または追加巻）を入れると巻マスが出ます</span>';return}
   wrap.innerHTML="";
   setsDraft.forEach(function(set,i){
     var block=document.createElement("div");block.className="setblock";
@@ -502,8 +518,8 @@ function openSheet(id){
   document.getElementById("fName").value=w?w.name:"";
   selectedG=w&&w.genre?w.genre:((view&&view.slice(0,2)!=="__"&&view)||genres[0]||"未分類");
   renderGPick();
-  document.getElementById("fLabels").value=w&&w.labels?w.labels.join("・"):"";
-  document.getElementById("fTotal").value=w?w.total:1;
+  document.getElementById("fLabels").value=w?extraLabels(w).join("・"):"";
+  document.getElementById("fTotal").value=w?numPrefix(w):1;
   setsDraft=w?setsList(w).map(function(a){return new Set(a)}):[new Set()];
   document.getElementById("fSets").value=setsDraft.length;
   document.getElementById("fReason").value=w&&w.reason?w.reason:"";
@@ -522,8 +538,9 @@ function closeSheet(){document.getElementById("scrim").classList.remove("on");do
 function saveSheet(){
   var name=document.getElementById("fName").value.trim();
   if(!name){toast("作品名を入れてください");return}
-  var L=parseLabels();
-  var total=L?L.length:Math.max(1,Math.min(200,parseInt(document.getElementById("fTotal").value,10)||1));
+  var E=parseExtras();
+  var L=mkLabels(fNumVal(),E);
+  var total=Math.max(1,fTotalVal());
   var sd=setsDraft.map(function(set){return Array.from(set).filter(function(v){return v>=1&&v<=total}).sort(function(a,b){return a-b})});
   if(!sd.length)sd=[[]];
   var prev=editId?works.filter(function(w){return w.id===editId})[0]:null;
@@ -550,7 +567,7 @@ document.getElementById("fSets").oninput=buildSets;
 document.getElementById("fLabels").oninput=buildSets;
 document.getElementById("fPhoto").onchange=function(e){var f=e.target.files&&e.target.files[0];if(!f)return;shrinkImage(f,function(data){photoDraft=data;setPhotoPreview(data);toast("写真を付けました（保存で確定）")});e.target.value=""};
 document.getElementById("pDel").onclick=function(){photoDraft=null;setPhotoPreview(null);toast("写真を外しました（保存で確定）")};
-function stepTotal(d){var el=document.getElementById("fTotal");var v=Math.max(1,Math.min(200,(parseInt(el.value,10)||0)+d));el.value=v;buildSets()}
+function stepTotal(d){var el=document.getElementById("fTotal");var v=Math.max(0,Math.min(200,(parseInt(el.value,10)||0)+d));el.value=v;buildSets()}
 function stepSets(d){var el=document.getElementById("fSets");var v=Math.max(1,Math.min(50,(parseInt(el.value,10)||0)+d));el.value=v;buildSets()}
 document.getElementById("tMinus").onclick=function(){stepTotal(-1)};
 document.getElementById("tPlus").onclick=function(){stepTotal(1)};
