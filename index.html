@@ -197,6 +197,9 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .calc .cg button.eq{background:var(--accent);border-color:var(--accent);color:#fff;grid-row:span 2}
 .calc .cg button.z2{grid-column:span 2}
 .calc .cg button:active{transform:scale(.93)}
+/* 編集シートを開いている間は、下部の操作バー（↩戻る・保存等）と重ならないよう電卓を持ち上げる */
+body:has(#sheet.on) .calcbtn{bottom:calc(96px + env(safe-area-inset-bottom))}
+body:has(#sheet.on) .calc{bottom:calc(152px + env(safe-area-inset-bottom))}
 /* genre manager */
 .gmgr{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(320px,88vw);max-height:80vh;overflow:auto;background:var(--ground);border:1px solid var(--line);border-radius:14px;padding:16px;z-index:60;display:none;box-shadow:0 14px 40px rgba(10,10,20,.35)}
 .gmgr.on{display:block}
