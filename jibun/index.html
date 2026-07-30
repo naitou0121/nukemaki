@@ -332,6 +332,11 @@ body:has(#sheet.on) .calc{bottom:calc(152px + env(safe-area-inset-bottom))}
 <script>
 "use strict";
 var KEY="nukemaki_v1", PKEY="nukemaki_photos", GKEY="nukemaki_genres";
+/* 2026-07-30 一度きりの白紙化：既存データは _bk20260730 キーへ退避（復元可能） */
+(function(){var W="nukemaki_wipe_20260730";try{if(localStorage.getItem(W))return}catch(e){return}
+["nukemaki_v1","nukemaki_photos","nukemaki_genres","nukemaki_undo","nukemaki_redo"].forEach(function(k){
+try{var v=localStorage.getItem(k);if(v===null)return;try{localStorage.setItem(k+"_bk20260730",v)}catch(e){}localStorage.removeItem(k)}catch(e){}});
+try{localStorage.setItem(W,"1")}catch(e){}})();
 var works=load(), photos=loadPhotos(), editId=null, setsDraft=[new Set()], photoDraft, selectedG="", query="", view="";
 var genres=(function(){var a=null;try{a=JSON.parse(localStorage.getItem(GKEY))}catch(e){}if(!Array.isArray(a)||!a.length)a=["青年","少年","女性","BL","TL","ラノベ","一般書"];return a})();
 function persistGenres(){try{localStorage.setItem(GKEY,JSON.stringify(genres))}catch(e){}}
