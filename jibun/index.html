@@ -234,12 +234,26 @@ body:has(#sheet.on) .calc{bottom:calc(152px + env(safe-area-inset-bottom))}
   <div class="tools">
     <a id="btnExport">バックアップを書き出す</a>
     <a id="btnImport">読み込む</a>
+    <a id="btnMemo">📋 メモ帳から取り込み</a>
   </div>
   <div class="io" id="ioBox" style="display:none;margin-top:12px">
     <textarea id="ioText" placeholder="ここに貼り付けて「読み込む」を押す"></textarea>
     <div class="actions" style="margin-top:8px">
       <button class="btn ghost" id="ioCopy">コピー</button>
       <button class="btn primary" id="ioLoad">この内容を読み込む</button>
+    </div>
+  </div>
+  <div class="io" id="memoBox" style="display:none;margin-top:12px">
+    <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.6">メモ帳の文面をそのまま貼り付け→ジャンルを選んで「読み取る」。<b>数字＝持ってる巻</b>・空行で作品の区切り・数字の行1行＝1セット。読めない行は⚠️要確認メモとして作品に残ります</div>
+    <div id="memoGPick" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+    <textarea id="memoText" placeholder="例）&#10;骸骨騎士&#10;1-10&#10;1-13&#10;&#10;錬金術師&#10;3.4.6-17"></textarea>
+    <div class="actions" style="margin-top:8px">
+      <button class="btn ghost" id="memoClose">閉じる</button>
+      <button class="btn primary" id="memoParseBtn">読み取る</button>
+    </div>
+    <div id="memoPrev" style="margin-top:10px"></div>
+    <div class="actions" id="memoCommitRow" style="display:none;margin-top:8px">
+      <button class="btn primary" id="memoCommit">この内容で取り込む</button>
     </div>
   </div>
   <div class="foot">作った人 <a href="https://x.com/nattou091" target="_blank" rel="noopener">@nattou091</a> ・ データはこの端末内だけに保存（サーバーに送られません）</div>
@@ -662,6 +676,130 @@ function calcPress(k){
   cg.appendChild(tb);
 })();
 document.getElementById("calcBtn").onclick=function(){document.getElementById("calcPanel").classList.toggle("on")};
+
+/* ---- メモ帳から取り込み（2026-07-30・数字＝持ってる巻） ---- */
+var memoGSel="", memoParsed=null;
+function zenkaku2han(s){return s.replace(/[０-９]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-65248)}).replace(/　/g," ")}
+var VOLLINE=/^[0-9][0-9 .,、・．〜~\-]*$/;
+function parseVolStr(s){
+  s=s.replace(/[、,・．.]/g," ").replace(/[〜~]/g,"-");
+  var nums=[],zero=false,seen={};
+  s.split(/\s+/).forEach(function(t){
+    if(!t)return;var m;
+    if((m=t.match(/^(\d+)-(\d+)$/))){var a=+m[1],b=+m[2];if(a>b){var x=a;a=b;b=x}if(b>300)b=300;for(var v=a;v<=b;v++){if(v===0)zero=true;else if(!seen[v]){seen[v]=1;nums.push(v)}}}
+    else if(/^\d+$/.test(t)){var v2=+t;if(v2===0)zero=true;else if(v2<=300&&!seen[v2]){seen[v2]=1;nums.push(v2)}}
+  });
+  return {nums:nums,zero:zero};
+}
+function parseMemo(text){
+  var lines=text.split(/\r?\n/).map(function(l){return zenkaku2han(l).trim()});
+  var blocks=[],cur=[];
+  lines.forEach(function(l){if(!l){if(cur.length){blocks.push(cur);cur=[]}return}cur.push(l)});
+  if(cur.length)blocks.push(cur);
+  var GEN=/^(ライトノベル|ラノベ|コミック|漫画|マンガ|少年|青年|女性|BL|TL|一般書|小説|児童書|大型本)$/;
+  var out=[];
+  blocks.forEach(function(b){
+    if(b.length===1&&GEN.test(b[0]))return;
+    var t=b[0],deadline="",name=t,firstVol=null,notes=[];
+    var dm=t.match(/(?:(20\d{2})年)?(\d{1,2})月/);
+    if(dm&&+dm[2]>=1&&+dm[2]<=12&&dm.index>0){
+      var y=dm[1]?+dm[1]:null,mo=+dm[2];
+      if(y===null){var nd=new Date();y=nd.getFullYear();if(mo<nd.getMonth()+1)y++}
+      deadline=y+"-"+(mo<10?"0":"")+mo+"-01";
+      var trail=t.slice(dm.index).trim();
+      if(trail!==dm[0])notes.push(trail);
+      name=t.slice(0,dm.index).trim();
+    }
+    var vm=name.match(/^(.+?)[ ]*([0-9][0-9 .,、・．〜~\-]*)$/);
+    if(vm&&vm[1].trim()){name=vm[1].trim();firstVol=parseVolStr(vm[2])}
+    if(!name)return;
+    var sets=[];
+    if(firstVol)sets.push(firstVol);
+    b.slice(1).forEach(function(l){
+      if(VOLLINE.test(l))sets.push(parseVolStr(l));
+      else notes.push(l);
+    });
+    var maxN=1;sets.forEach(function(s){s.nums.forEach(function(v){if(v>maxN)maxN=v})});
+    var hasZero=sets.some(function(s){return s.zero});
+    var extras=hasZero?["0"]:[];
+    var sd=sets.map(function(s){var a=s.nums.slice().sort(function(x,y){return x-y});if(s.zero)a=a.concat([maxN+1]);return a});
+    if(!sd.length)sd=[[]];
+    out.push({name:name,total:maxN+extras.length,setsData:sd,deadline:deadline,notes:notes,labels:mkLabels(maxN,extras),noVols:!sets.length});
+  });
+  return out;
+}
+function renderMemoG(){
+  var box=document.getElementById("memoGPick");
+  if(!memoGSel||genres.indexOf(memoGSel)<0)memoGSel=(view&&genres.indexOf(view)>=0)?view:(genres[0]||"未分類");
+  box.innerHTML=genres.map(function(g){return '<button type="button" class="gchip'+(g===memoGSel?" on":"")+'" data-g="'+esc(g)+'" style="font-size:13.5px;padding:8px 13px">'+esc(g)+'</button>'}).join("");
+  Array.prototype.forEach.call(box.querySelectorAll(".gchip"),function(el){el.onclick=function(){memoGSel=el.getAttribute("data-g");renderMemoG()}});
+}
+function memoPreview(){
+  var box=document.getElementById("memoPrev");
+  if(!memoParsed||!memoParsed.length){box.innerHTML="";document.getElementById("memoCommitRow").style.display="none";return}
+  var h="";
+  memoParsed.forEach(function(p){
+    var ex=works.some(function(w){return w.name===p.name});
+    var tmp={total:p.total};if(p.labels)tmp.labels=p.labels;
+    var setsTxt=p.setsData.map(function(s,i){
+      var miss=setMissing(s,p.total);
+      return "セット"+(i+1)+"："+(miss.length?"抜け "+missFmt(tmp,miss):"揃い✅");
+    }).join("　");
+    if(p.noVols)setsTxt="⚠️ 巻の数字が読み取れず（0巻の状態で登録）";
+    h+='<div style="padding:8px 2px;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.7">'
+      +'<b>'+esc(p.name)+'</b> <span style="color:'+(ex?"var(--accent)":"var(--ink-soft)")+';font-size:12px">'+(ex?"↻ 更新":"＋ 追加")+'</span>'
+      +(p.deadline?' <span style="color:var(--ink-soft);font-size:12px">⏰'+esc(p.deadline)+'</span>':"")
+      +'<br>'+setsTxt
+      +(p.notes.length?'<br><span style="color:var(--ink-soft);font-size:12.5px">⚠️ メモ：'+esc(p.notes.join(" ／ "))+'</span>':"")
+      +'</div>';
+  });
+  box.innerHTML=h;
+  document.getElementById("memoCommitRow").style.display="flex";
+}
+document.getElementById("btnMemo").onclick=function(){
+  var box=document.getElementById("memoBox");box.style.display="block";
+  renderMemoG();box.scrollIntoView({behavior:"smooth"});
+  document.getElementById("memoText").focus();
+};
+document.getElementById("memoClose").onclick=function(){
+  document.getElementById("memoBox").style.display="none";
+  memoParsed=null;document.getElementById("memoPrev").innerHTML="";
+  document.getElementById("memoCommitRow").style.display="none";
+};
+document.getElementById("memoParseBtn").onclick=function(){
+  var text=document.getElementById("memoText").value;
+  if(!text.trim()){toast("メモ帳の文面を貼り付けてください");return}
+  memoParsed=parseMemo(text);
+  if(!memoParsed.length){toast("読み取れる作品がありませんでした");return}
+  memoPreview();
+  toast(memoParsed.length+"作品を読み取りました。内容を確認してください");
+};
+document.getElementById("memoCommit").onclick=function(){
+  if(!memoParsed||!memoParsed.length)return;
+  snapshot();
+  var nAdd=0,nUpd=0;
+  memoParsed.forEach(function(p){
+    var ex=null;works.forEach(function(w){if(!ex&&w.name===p.name)ex=w});
+    if(ex){
+      ex.genre=memoGSel||ex.genre;
+      ex.total=p.total;ex.setsData=p.setsData;
+      if(p.labels)ex.labels=p.labels;else delete ex.labels;
+      if(p.deadline)ex.deadline=p.deadline;
+      if(p.notes.length){ex.reason=p.notes.join(" / ");ex.check=true}
+      nUpd++;
+    }else{
+      var o={id:uid(),name:p.name,genre:memoGSel||"未分類",total:p.total,setsData:p.setsData,reason:p.notes.join(" / "),deadline:p.deadline,price:0,star:false,check:p.notes.length>0,place:"",stocked:isoToday()};
+      if(p.labels)o.labels=p.labels;
+      works.push(o);nAdd++;
+    }
+  });
+  persist();migrate();render();
+  document.getElementById("memoBox").style.display="none";
+  memoParsed=null;document.getElementById("memoPrev").innerHTML="";
+  document.getElementById("memoCommitRow").style.display="none";
+  document.getElementById("memoText").value="";
+  toast(nAdd+"件追加・"+nUpd+"件更新しました（↩で戻せます）");
+};
 
 /* ---- ダブルタップズームのJSフォールバック（touch-actionが効かない環境向け・2026-07-29） ---- */
 (function(){
