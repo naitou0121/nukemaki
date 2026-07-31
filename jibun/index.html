@@ -563,6 +563,11 @@ function buildSets(){
     var bc=document.createElement("button");bc.type="button";bc.textContent="クリア";
     bc.onclick=function(){draftSnap();setsDraft[i]=new Set();buildSets()};
     btns.appendChild(bf);btns.appendChild(bc);
+    if(setsDraft.length>1){
+      var bd=document.createElement("button");bd.type="button";bd.textContent="✕ 削除";bd.style.color="var(--red)";
+      bd.onclick=function(){draftSnap();setsDraft.splice(i,1);document.getElementById("fSets").value=setsDraft.length;buildSets();toast((i+1)+"セット目を削除しました（↩で戻せます）")};
+      btns.appendChild(bd);
+    }
     head.appendChild(lab);head.appendChild(btns);block.appendChild(head);
     var chips=document.createElement("div");chips.className="chips";
     for(var v=1;v<=t;v++){(function(v){
