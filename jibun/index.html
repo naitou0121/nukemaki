@@ -244,7 +244,7 @@ body:has(#sheet.on) .calc{bottom:calc(152px + env(safe-area-inset-bottom))}
     </div>
   </div>
   <div class="io" id="memoBox" style="display:none;margin-top:12px">
-    <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.6">メモ帳の文面をそのまま貼り付け→ジャンルを選んで「読み取る」。<b>数字＝持ってる巻</b>・空行で作品の区切り・数字の行1行＝1セット。読めない行は⚠️要確認メモとして作品に残ります</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.6">メモ帳を<b>丸ごと</b>貼り付けOK。「・ジャンル名」の行で自動振り分け（見出しが無いメモは下で選んだジャンルに入る）。<b>数字＝持ってる巻</b>・空行で作品の区切り・数字の行1行＝1セット・「◯月」→締切日・単独の100以上の数字→仕入れ値。読めない行は⚠️要確認メモとして作品に残ります</div>
     <div id="memoGPick" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
     <textarea id="memoText" placeholder="例）&#10;骸骨騎士&#10;1-10&#10;1-13&#10;&#10;錬金術師&#10;3.4.6-17"></textarea>
     <div class="actions" style="margin-top:8px">
@@ -677,46 +677,67 @@ function calcPress(k){
 })();
 document.getElementById("calcBtn").onclick=function(){document.getElementById("calcPanel").classList.toggle("on")};
 
-/* ---- メモ帳から取り込み（2026-07-30・数字＝持ってる巻） ---- */
-var memoGSel="", memoParsed=null;
-function zenkaku2han(s){return s.replace(/[０-９]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-65248)}).replace(/　/g," ")}
+/* ---- メモ帳から取り込み（2026-07-30・数字＝持ってる巻・「・ジャンル名」見出しで自動振り分け） ---- */
+var memoGSel="", memoParsed=null, memoSkipped=[];
+function zenkaku2han(s){return s.replace(/[０-９]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-65248)}).replace(/　/g," ").replace(/[−–—―]/g,"-")}
 var VOLLINE=/^[0-9][0-9 .,、・．〜~\-]*$/;
 function parseVolStr(s){
   s=s.replace(/[、,・．.]/g," ").replace(/[〜~]/g,"-");
-  var nums=[],zero=false,seen={};
+  var nums=[],zero=false,price=0,bad=[],seen={};
+  function addRange(a,b){if(a>b){var x=a;a=b;b=x}if(b-a>300)b=a+300;for(var v=a;v<=b;v++){if(v===0)zero=true;else if(!seen[v]){seen[v]=1;nums.push(v)}}}
   s.split(/\s+/).forEach(function(t){
-    if(!t)return;var m;
-    if((m=t.match(/^(\d+)-(\d+)$/))){var a=+m[1],b=+m[2];if(a>b){var x=a;a=b;b=x}if(b>300)b=300;for(var v=a;v<=b;v++){if(v===0)zero=true;else if(!seen[v]){seen[v]=1;nums.push(v)}}}
-    else if(/^\d+$/.test(t)){var v2=+t;if(v2===0)zero=true;else if(v2<=300&&!seen[v2]){seen[v2]=1;nums.push(v2)}}
+    if(!t||t==="-")return;var m;
+    if((m=t.match(/^(\d+)-(\d+)$/)))addRange(+m[1],+m[2]);
+    else if((m=t.match(/^-(\d+)$/)))addRange(1,+m[1]);
+    else if(/^\d+$/.test(t)){var v2=+t;if(v2===0)zero=true;else if(v2>=100)price+=v2;else if(!seen[v2]){seen[v2]=1;nums.push(v2)}}
+    else bad.push(t);
   });
-  return {nums:nums,zero:zero};
+  return {nums:nums,zero:zero,price:price,bad:bad};
 }
 function parseMemo(text){
   var lines=text.split(/\r?\n/).map(function(l){return zenkaku2han(l).trim()});
   var blocks=[],cur=[];
   lines.forEach(function(l){if(!l){if(cur.length){blocks.push(cur);cur=[]}return}cur.push(l)});
   if(cur.length)blocks.push(cur);
-  var GEN=/^(ライトノベル|ラノベ|コミック|漫画|マンガ|少年|青年|女性|BL|TL|一般書|小説|児童書|大型本)$/;
-  var out=[];
+  var GEN=/^(ライトノベル|ラノベ|コミック|漫画|マンガ|少年|青年|女性|BL|TL|一般書|小説|児童書|大型本|文庫)$/;
+  var SKIP=/^(ネットオフ|ブックオフ|Amazon回収|メルカリ)$/;
+  var out=[];memoSkipped=[];var curG="";
   blocks.forEach(function(b){
-    if(b.length===1&&GEN.test(b[0]))return;
-    var t=b[0],deadline="",name=t,firstVol=null,notes=[];
-    var dm=t.match(/(?:(20\d{2})年)?(\d{1,2})月/);
-    if(dm&&+dm[2]>=1&&+dm[2]<=12&&dm.index>0){
-      var y=dm[1]?+dm[1]:null,mo=+dm[2];
-      if(y===null){var nd=new Date();y=nd.getFullYear();if(mo<nd.getMonth()+1)y++}
-      deadline=y+"-"+(mo<10?"0":"")+mo+"-01";
-      var trail=t.slice(dm.index).trim();
-      if(trail!==dm[0])notes.push(trail);
-      name=t.slice(0,dm.index).trim();
+    if(b.length===1){
+      var s0=b[0];
+      var gm=s0.match(/^[・･•]\s*(.+)$/);
+      if(gm){curG=gm[1].trim();return}
+      if(GEN.test(s0)){curG=s0;return}
+      if(SKIP.test(s0))return;
     }
+    if(VOLLINE.test(b[0])){memoSkipped.push(b.join(" ／ "));return}
+    var t=b[0].replace(/^[・･•]\s*/,""),deadline="",name=t,firstVol=null,notes=[];
+    var d=dateFrom(t);
+    if(d&&d.idx>0){
+      deadline=d.iso;
+      var trail=t.slice(d.idx).trim();
+      if(trail!==d.txt)notes.push(trail);
+      name=t.slice(0,d.idx).trim();
+    }
+    /* タイトル中の「あと◯」は持ってる巻ではなく抜けメモとして退避 */
+    var am=name.match(/^(.+?)(あと[0-9].*)$/);
+    if(am&&am[1].trim()){name=am[1].trim();notes.push(am[2])}
+    /* タイトル末尾の巻表記は「1-19」「1.2.6」のように区切りを含む時だけ分離（ペルソナ4 等の作品名を守る） */
     var vm=name.match(/^(.+?)[ ]*([0-9][0-9 .,、・．〜~\-]*)$/);
-    if(vm&&vm[1].trim()){name=vm[1].trim();firstVol=parseVolStr(vm[2])}
+    if(vm&&vm[1].trim()&&/[^0-9 .,、・．〜~\-]/.test(vm[1])&&/[-., 、・．〜~]/.test(vm[2].trim())){name=vm[1].trim();firstVol=parseVolStr(vm[2])}
     if(!name)return;
-    var sets=[];
-    if(firstVol)sets.push(firstVol);
+    var sets=[],price=0;
+    function feed(r,raw){
+      if(r.price)price+=r.price;
+      if(r.bad.length)notes.push("読めず: "+r.bad.join(" "));
+      if(r.nums.length||r.zero)sets.push(r);
+      else if(!r.price&&raw)notes.push(raw);
+    }
+    if(firstVol)feed(firstVol,"");
     b.slice(1).forEach(function(l){
-      if(VOLLINE.test(l))sets.push(parseVolStr(l));
+      if(VOLLINE.test(l)){feed(parseVolStr(l),l);return}
+      var d2=deadline?null:dateFrom(l);
+      if(d2&&d2.txt===l)deadline=d2.iso;
       else notes.push(l);
     });
     var maxN=1;sets.forEach(function(s){s.nums.forEach(function(v){if(v>maxN)maxN=v})});
@@ -724,9 +745,29 @@ function parseMemo(text){
     var extras=hasZero?["0"]:[];
     var sd=sets.map(function(s){var a=s.nums.slice().sort(function(x,y){return x-y});if(s.zero)a=a.concat([maxN+1]);return a});
     if(!sd.length)sd=[[]];
-    out.push({name:name,total:maxN+extras.length,setsData:sd,deadline:deadline,notes:notes,labels:mkLabels(maxN,extras),noVols:!sets.length});
+    out.push({name:name,genre:curG,total:maxN+extras.length,setsData:sd,deadline:deadline,notes:notes,price:price,labels:mkLabels(maxN,extras),noVols:!sets.length});
   });
-  return out;
+  /* 同じメモ内に同名作品が2回出たら統合（後勝ち上書きで消さない） */
+  var merged=[],idx={};
+  out.forEach(function(p){
+    var k=p.name+" "+p.genre;
+    var q=idx[k];
+    if(!q){idx[k]=p;merged.push(p);return}
+    if(p.total>q.total){q.total=p.total;q.labels=p.labels}
+    if(q.noVols&&!p.noVols){q.setsData=p.setsData.slice();q.noVols=false}
+    else if(!p.noVols)q.setsData=q.setsData.concat(p.setsData);
+    q.notes=q.notes.concat(p.notes);
+    q.price=(q.price||0)+(p.price||0);
+    if(!q.deadline)q.deadline=p.deadline;
+  });
+  return merged;
+}
+function dateFrom(t){
+  var dm=t.match(/(20\d{2})\s*[年.．]\s*(\d{1,2})月?/),mo=0,yy=0;
+  if(dm){yy=+dm[1];mo=+dm[2]}
+  else if((dm=t.match(/(\d{1,2})月/))){mo=+dm[1];var nd=new Date();yy=nd.getFullYear();if(mo<nd.getMonth()+1)yy++}
+  if(!dm||mo<1||mo>12)return null;
+  return {idx:dm.index,txt:dm[0],iso:yy+"-"+(mo<10?"0":"")+mo+"-01"};
 }
 function renderMemoG(){
   var box=document.getElementById("memoGPick");
@@ -737,22 +778,26 @@ function renderMemoG(){
 function memoPreview(){
   var box=document.getElementById("memoPrev");
   if(!memoParsed||!memoParsed.length){box.innerHTML="";document.getElementById("memoCommitRow").style.display="none";return}
-  var h="";
+  var h="",lastG=null;
   memoParsed.forEach(function(p){
-    var ex=works.some(function(w){return w.name===p.name});
+    var g=p.genre||memoGSel||"未分類";
+    if(g!==lastG){h+='<div style="margin:12px 0 2px;font-weight:700;font-size:13px;color:var(--accent)">📚 '+esc(g)+'</div>';lastG=g}
+    var ex=works.some(function(w){return w.name===p.name&&w.genre===g});
     var tmp={total:p.total};if(p.labels)tmp.labels=p.labels;
     var setsTxt=p.setsData.map(function(s,i){
       var miss=setMissing(s,p.total);
       return "セット"+(i+1)+"："+(miss.length?"抜け "+missFmt(tmp,miss):"揃い✅");
     }).join("　");
-    if(p.noVols)setsTxt="⚠️ 巻の数字が読み取れず（0巻の状態で登録）";
+    if(p.noVols)setsTxt="⚠️ 巻の数字なし（0巻の状態で登録・メモは下に保持）";
     h+='<div style="padding:8px 2px;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.7">'
       +'<b>'+esc(p.name)+'</b> <span style="color:'+(ex?"var(--accent)":"var(--ink-soft)")+';font-size:12px">'+(ex?"↻ 更新":"＋ 追加")+'</span>'
       +(p.deadline?' <span style="color:var(--ink-soft);font-size:12px">⏰'+esc(p.deadline)+'</span>':"")
+      +(p.price?' <span style="color:var(--ink-soft);font-size:12px">💰¥'+p.price.toLocaleString("ja-JP")+'</span>':"")
       +'<br>'+setsTxt
       +(p.notes.length?'<br><span style="color:var(--ink-soft);font-size:12.5px">⚠️ メモ：'+esc(p.notes.join(" ／ "))+'</span>':"")
       +'</div>';
   });
+  if(memoSkipped.length)h='<div style="padding:6px 2px;font-size:12.5px;color:var(--ink-soft)">⏭ 作品名なしで読み飛ばし：'+esc(memoSkipped.join("｜"))+'</div>'+h;
   box.innerHTML=h;
   document.getElementById("memoCommitRow").style.display="flex";
 }
@@ -779,16 +824,19 @@ document.getElementById("memoCommit").onclick=function(){
   snapshot();
   var nAdd=0,nUpd=0;
   memoParsed.forEach(function(p){
-    var ex=null;works.forEach(function(w){if(!ex&&w.name===p.name)ex=w});
+    var g=p.genre||memoGSel||"未分類";
+    var ex=null;works.forEach(function(w){if(!ex&&w.name===p.name&&w.genre===g)ex=w});
+    var chk=p.notes.length>0||p.noVols;
     if(ex){
-      ex.genre=memoGSel||ex.genre;
       ex.total=p.total;ex.setsData=p.setsData;
       if(p.labels)ex.labels=p.labels;else delete ex.labels;
       if(p.deadline)ex.deadline=p.deadline;
-      if(p.notes.length){ex.reason=p.notes.join(" / ");ex.check=true}
+      if(p.price)ex.price=p.price;
+      if(p.notes.length)ex.reason=p.notes.join(" / ");
+      if(chk)ex.check=true;
       nUpd++;
     }else{
-      var o={id:uid(),name:p.name,genre:memoGSel||"未分類",total:p.total,setsData:p.setsData,reason:p.notes.join(" / "),deadline:p.deadline,price:0,star:false,check:p.notes.length>0,place:"",stocked:isoToday()};
+      var o={id:uid(),name:p.name,genre:g,total:p.total,setsData:p.setsData,reason:p.notes.join(" / "),deadline:p.deadline,price:p.price||0,star:false,check:chk,place:"",stocked:isoToday()};
       if(p.labels)o.labels=p.labels;
       works.push(o);nAdd++;
     }
