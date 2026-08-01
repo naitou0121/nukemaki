@@ -129,7 +129,7 @@ h1{font-size:18px;font-weight:700;margin:0;letter-spacing:.01em}
 .scrim{position:fixed;inset:0;background:rgba(20,20,28,.45);z-index:40;display:none}
 .scrim.on{display:block}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--ground);
-  border-radius:18px 18px 0 0;max-width:520px;margin:0 auto;max-height:84vh;overflow:auto;
+  border-radius:18px 18px 0 0;max-width:520px;margin:0 auto;max-height:84vh;overflow-y:auto;overflow-x:hidden;touch-action:pan-y;
   transform:translateY(100%);transition:transform .22s ease;
   padding:8px 16px calc(24px + env(safe-area-inset-bottom))}
 .sheet.on{transform:translateY(0)}
@@ -156,7 +156,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   color:var(--ink-soft);border-radius:8px;padding:5px 9px;cursor:pointer}
 .setblock{margin:10px 0;padding:10px 10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--card)}
 .sethead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;font-size:13px;font-weight:700;color:var(--ink-soft)}
-.sethead .rng{color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums}
+.sethead .rng{color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;word-break:break-all}
 .setlist{margin-top:6px}
 .setrow{font-size:13px;margin-top:4px;color:var(--ink-soft)}
 .setrow .sn{color:var(--ink-faint);font-weight:700;margin-right:5px}
@@ -342,11 +342,11 @@ var genres=(function(){var a=null;try{a=JSON.parse(localStorage.getItem(GKEY))}c
 function persistGenres(){try{localStorage.setItem(GKEY,JSON.stringify(genres))}catch(e){}}
 var undoStack=loadStack("nukemaki_undo"), redoStack=loadStack("nukemaki_redo");
 function load(){try{var a=JSON.parse(localStorage.getItem(KEY));return Array.isArray(a)?a:[]}catch(e){return[]}}
-function persist(){localStorage.setItem(KEY,JSON.stringify(works))}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(works));return true}catch(e){try{localStorage.removeItem("nukemaki_undo");localStorage.removeItem("nukemaki_redo");localStorage.setItem(KEY,JSON.stringify(works));return true}catch(e2){toast("⚠️ 保存できませんでした（端末の保存容量がいっぱい。写真を何枚か消してください）");return false}}}
 function loadPhotos(){try{var o=JSON.parse(localStorage.getItem(PKEY));return (o&&typeof o==="object"&&!Array.isArray(o))?o:{}}catch(e){return{}}}
 function persistPhotos(){try{localStorage.setItem(PKEY,JSON.stringify(photos))}catch(e){toast("⚠️ 写真の保存容量がいっぱいです（古い写真を消してください）")}}
 function loadStack(k){try{var a=JSON.parse(localStorage.getItem(k));return Array.isArray(a)?a:[]}catch(e){return[]}}
-function persistStacks(){try{localStorage.setItem("nukemaki_undo",JSON.stringify(undoStack));localStorage.setItem("nukemaki_redo",JSON.stringify(redoStack))}catch(e){}}
+function persistStacks(){try{localStorage.setItem("nukemaki_undo",JSON.stringify(undoStack.slice(-5)));localStorage.setItem("nukemaki_redo",JSON.stringify(redoStack.slice(-5)))}catch(e){}}
 function snapshot(){undoStack.push(JSON.stringify(works));while(undoStack.length>20)undoStack.shift();redoStack=[];persistStacks()}
 function undo(){if(!undoStack.length){toast("これ以上戻せません");return}redoStack.push(JSON.stringify(works));works=JSON.parse(undoStack.pop());persist();persistStacks();migrate();render();toast("↩ 1つ戻しました")}
 function redo(){if(!redoStack.length){toast("これ以上進めません");return}undoStack.push(JSON.stringify(works));works=JSON.parse(redoStack.pop());persist();persistStacks();migrate();render();toast("↪ 1つ進めました")}
@@ -546,6 +546,7 @@ function closeSheet(){document.getElementById("scrim").classList.remove("on");do
 function saveSheet(){
   var name=document.getElementById("fName").value.trim();
   if(!name){toast("作品名を入れてください");return}
+  var _pa=parseInt(document.getElementById("fPriceAdd").value,10)||0;if(_pa>0){priceAdd(_pa);document.getElementById("fPriceAdd").value=""}
   var E=parseExtras();
   var L=mkLabels(fNumVal(),E);
   var total=Math.max(1,fTotalVal());
@@ -560,7 +561,7 @@ function saveSheet(){
     if(photoDraft===null){delete photos[obj.id]}else{photos[obj.id]=photoDraft}
     persistPhotos();
   }
-  persist();render();closeSheet();toast(editId?"保存しました":"追加しました");
+  var ok=persist();render();closeSheet();if(ok)toast(editId?"保存しました":"追加しました");editId=obj.id;
 }
 function delSheet(){if(!editId)return;snapshot();works=works.filter(function(w){return w.id!==editId});delete photos[editId];persistPhotos();persist();render();closeSheet();toast("削除しました（↩で戻せます）")}
 function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove("on")},1700)}
