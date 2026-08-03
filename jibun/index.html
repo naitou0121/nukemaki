@@ -70,11 +70,12 @@ h1{font-size:18px;font-weight:700;margin:0;letter-spacing:.01em}
 .gchip{flex:none;font-size:12.5px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
   background:var(--card);color:var(--ink-soft);cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums}
 .gchip.on{background:var(--accent);border-color:var(--accent);color:#fff}
-.viewsel{width:100%;font-size:13.5px;padding:8px 34px 8px 14px;border-radius:999px;
-  border:1px solid var(--line);background-color:var(--card);color:var(--ink);cursor:pointer;
-  -webkit-appearance:none;appearance:none;font-variant-numeric:tabular-nums;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%238a8f9c' d='M0 0h12L6 8z'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 13px center}
+.vbtns{display:flex;gap:7px;margin-bottom:8px}
+.vbtn{flex:1;font-size:13px;padding:8px 4px;border-radius:999px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink-soft);cursor:pointer;white-space:nowrap;
+  font-variant-numeric:tabular-nums;transition:transform 100ms ease-out}
+.vbtn:active{transform:scale(0.97)}
+.vbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .genres .mgr{flex:none}
 .gtag{font-size:11px;color:var(--accent);border:1px solid var(--accent-soft);background:var(--accent-soft);
   border-radius:6px;padding:1px 7px}
@@ -106,6 +107,8 @@ h1{font-size:18px;font-weight:700;margin:0;letter-spacing:.01em}
 .miss{margin-top:8px;font-size:13.5px;color:var(--ink-soft)}
 .miss .lbl{color:var(--red);font-weight:700}
 .miss .vols{color:var(--red);font-weight:700}
+.mchip{min-width:30px;height:30px;padding:0 5px;margin:2px 3px 2px 0;border-radius:8px;border:1.5px solid var(--red);background:var(--card);color:var(--red);font-size:13px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums;vertical-align:middle}
+.mchip:active{transform:scale(.94)}
 .meta{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:12.5px;color:var(--ink-faint)}
 .meta .dl{color:var(--ink-soft)}
 .bar{margin-top:9px;height:6px;border-radius:6px;background:var(--card-2);overflow:hidden}
@@ -157,6 +160,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .setrow .sn{color:var(--ink-faint);font-weight:700;margin-right:5px}
 .setrow .lbl,.setrow .vols{color:var(--red);font-weight:700}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
+#basicsBar{display:flex;align-items:center;justify-content:space-between;margin:14px 0 2px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:13.5px;font-weight:700;color:var(--ink-soft);cursor:pointer}
+#secBasics.fold > *:not(#basicsBar){display:none}
 .chip{min-width:40px;height:40px;padding:0 6px;border-radius:9px;border:1.5px solid var(--red);
   background:var(--card);color:var(--red);font-size:14px;font-weight:700;cursor:pointer;
   font-variant-numeric:tabular-nums;transition:transform .06s ease}
@@ -269,6 +274,7 @@ body:has(#sheet.on) .calc{bottom:calc(152px + env(safe-area-inset-bottom))}
   <label class="f" for="fName">作品名</label>
   <input class="t" id="fName" placeholder="例）薬屋のひとりごと" autocomplete="off">
 
+  <div id="secBasics"><div id="basicsBar" style="display:none">📚 ジャンル・巻数・追加巻を編集 <span id="basicsArw">▸</span></div>
   <label class="f">ジャンル（タップで選択）<a id="gEdit" style="float:right;color:var(--accent);cursor:pointer;font-weight:400">⚙ ジャンル編集</a></label>
   <div class="chips" id="gPick"></div>
 
@@ -282,8 +288,9 @@ body:has(#sheet.on) .calc{bottom:calc(152px + env(safe-area-inset-bottom))}
   <label class="f" for="fLabels">追加の巻（番外・上下巻など・「・」区切り）</label>
   <input class="t" id="fLabels" placeholder="例）16.5　／　上・下　／　綿・祟・鬼・暇" autocomplete="off">
   <div class="hint">既刊数と足し算されます。既刊数を0にすれば名前だけの巻マスになります</div>
+  </div>
 
-  <label class="f" for="fSets">作るセット数</label>
+  <div id="secSets"><label class="f" for="fSets">作るセット数</label>
   <div class="stepper">
     <button type="button" id="sMinus" aria-label="1減らす">−</button>
     <input class="t" id="fSets" type="number" inputmode="numeric" min="1" max="50" value="1">
@@ -292,6 +299,7 @@ body:has(#sheet.on) .calc{bottom:calc(152px + env(safe-area-inset-bottom))}
 
   <div class="mini" style="font-size:12px;color:var(--ink-soft);margin:12px 0 2px">各セットで持ってる巻をタップ（<span style="color:var(--accent)">青＝持ってる</span> / <span style="color:var(--red)">赤枠＝抜け</span>）</div>
   <div id="setsWrap"></div>
+  </div>
 
   <label class="f" for="fReason">締切の理由（メモ）</label>
   <input class="t" id="fReason" placeholder="例）アニメ2期・実写化・客注 など" autocomplete="off">
@@ -386,12 +394,9 @@ function undo(){if(!undoStack.length){toast("これ以上戻せません");retur
 function redo(){if(!redoStack.length){toast("これ以上進めません");return}undoStack.push(JSON.stringify(works));works=JSON.parse(redoStack.pop());persist();persistStacks();migrate();render();toast("↪ 1つ進めました")}
 function refreshHist(){var u=document.getElementById("undoBtn"),r=document.getElementById("redoBtn");if(u)u.disabled=!undoStack.length;if(r)r.disabled=!redoStack.length}
 function uid(){return "w"+(works.reduce(function(m,w){return Math.max(m,+(w.id||"w0").slice(1)||0)},0)+1)}
-/* ---- 場所・入庫日・抜け殻候補（2026-07-28追加） ---- */
-var HKEY="nukemaki_husk_days", placeDraft="";
+/* ---- 場所・入庫日（2026-07-28追加。抜け殻候補ビューは2026-08-03撤去） ---- */
+var placeDraft="";
 function isoToday(){var d=new Date();function z(n){return (n<10?"0":"")+n}return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())}
-function huskDays(){var v=parseInt(localStorage.getItem(HKEY),10);return v>0?v:90}
-function stockAge(w){if(!w.stocked)return null;var p=w.stocked.split("-");return Math.round((today()-new Date(+p[0],+p[1]-1,+p[2]))/86400000)}
-function isHusk(w){if(allDone(w))return false;var a=stockAge(w);return a!==null&&a>huskDays()&&!w.deadline}
 function renderPlacePick(){var box=document.getElementById("pPick");if(!box)return;
 var is2f=placeDraft.slice(0,2)==="2階";
 var h=["未設定","1階","2階"].map(function(p){
@@ -441,6 +446,20 @@ function daysLeft(dl){if(!dl)return null;var p=dl.split("-");var t=new Date(+p[0
 function statusOf(w){if(allDone(w))return {lv:"done",cls:"done",label:"揃い ✅",rank:5,d:9999};var d=daysLeft(w.deadline);if(d===null)return {lv:"nodate",cls:"nodate",label:"締切未設定",rank:3,d:8000};if(d<0)return {lv:"over",cls:"over",label:"期限切れ "+(-d)+"日",rank:0,d:d};if(d<=14)return {lv:"urgent",cls:"urgent",label:"残 "+d+"日",rank:1,d:d};if(d<=30)return {lv:"soon",cls:"soon",label:"残 "+d+"日",rank:2,d:d};return {lv:"ok",cls:"nodate",label:"残 "+d+"日",rank:4,d:d}}
 function rangeFmt(arr){if(!arr.length)return "";var out=[],s=arr[0],p=arr[0];for(var i=1;i<=arr.length;i++){if(arr[i]===p+1){p=arr[i];continue}out.push(s===p?(""+s):(s+"-"+p));s=arr[i];p=arr[i]}return out.join(",")}
 /* 数字の巻は「3-5」と圧縮し、追加巻は名前で並べる */
+function volDisp(w,v){var L=w.labels;return (L&&L[v-1])?L[v-1]:v}
+function missTapHtml(w,si,m){
+  if(m.length>12)return '<span class="vols">'+esc(missFmt(w,m))+'</span>';
+  return '<span class="vols">'+m.map(function(v){return '<button type="button" class="mchip" data-si="'+si+'" data-v="'+v+'">'+esc(String(volDisp(w,v)))+'</button>'}).join("")+'</span>';
+}
+function markOwned(w,si,v){
+  if(!w.setsData||!w.setsData.length)w.setsData=[[]];
+  if(!w.setsData[si])return;
+  if(w.setsData[si].indexOf(v)>=0)return;
+  snapshot();
+  w.setsData[si].push(v);w.setsData[si].sort(function(a,b){return a-b});
+  persist();render();
+  toast("「"+w.name+"」"+volDisp(w,v)+" を持ってるにしました（↩で戻せます）");
+}
 function missFmt(w,volArr){
   var L=labelsOf(w);if(!L)return rangeFmt(volArr).replace(/,/g,"・");
   var np=numPrefix(w);
@@ -455,18 +474,16 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;
 function genreCounts(){var m={};works.forEach(function(w){var g=w.genre||"未分類";m[g]=(m[g]||0)+1});return m}
 function renderGenres(){var box=document.getElementById("genres");var m=genreCounts();var keys=genres.filter(function(g){return m[g]});Object.keys(m).forEach(function(g){if(keys.indexOf(g)<0)keys.push(g)});box.style.display="flex";var nStar=works.filter(function(w){return w.star}).length;
 var nCheck=works.filter(function(w){return w.check}).length;
-var nHusk=works.filter(isHusk).length;
-var special=(view==="__star__"||view==="__deadline__"||view==="__check__"||view==="__husk__");
-var o='<option value=""'+(special?"":" selected")+'>すべて</option>';
-o+='<option value="__star__"'+(view==="__star__"?" selected":"")+'>★ 星つき '+nStar+'</option>';
-o+='<option value="__deadline__"'+(view==="__deadline__"?" selected":"")+'>⏰ 締切が近い順</option>';
-o+='<option value="__check__"'+(view==="__check__"?" selected":"")+'>⚠️ 要確認 '+nCheck+'</option>';
-o+='<option value="__husk__"'+(view==="__husk__"?" selected":"")+'>📦 抜け殻候補 '+nHusk+'</option>';
+var vb='<div class="vbtns">';
+vb+='<button type="button" class="vbtn'+(view==="__star__"?" on":"")+'" data-v="__star__">★ 星つき '+nStar+'</button>';
+vb+='<button type="button" class="vbtn'+(view==="__deadline__"?" on":"")+'" data-v="__deadline__">⏰ 締切順</button>';
+vb+='<button type="button" class="vbtn'+(view==="__check__"?" on":"")+'" data-v="__check__">⚠️ 要確認 '+nCheck+'</button>';
+vb+='</div>';
 var chips='<span class="gchip'+(view===""?" on":"")+'" data-g="">すべて '+works.length+'</span>';
 keys.forEach(function(g){chips+='<span class="gchip'+(view===g?" on":"")+'" data-g="'+esc(g)+'">'+esc(g)+' '+m[g]+'</span>'});
 chips+='<span class="gchip mgr" data-g="__mgr__">⚙</span>';
-box.innerHTML='<select class="viewsel" id="viewSel" aria-label="特別表示・並べ替え">'+o+'</select><div class="gchips">'+chips+'</div>';
-document.getElementById("viewSel").onchange=function(){view=this.value;render()};
+box.innerHTML=vb+'<div class="gchips">'+chips+'</div>';
+Array.prototype.forEach.call(box.querySelectorAll(".vbtn"),function(el){el.onclick=function(){var v=el.getAttribute("data-v");view=(view===v?"":v);render()}});
 Array.prototype.forEach.call(box.querySelectorAll(".gchip"),function(el){el.onclick=function(){var g=el.getAttribute("data-g");if(g==="__mgr__"){openGMgr();return}view=g;render()}})}
 function renderGPick(){var box=document.getElementById("gPick");var list=genres.slice();if(selectedG&&list.indexOf(selectedG)<0)list.push(selectedG);box.innerHTML=list.map(function(g){return '<button type="button" class="gchip'+(g===selectedG?" on":"")+'" data-g="'+esc(g)+'" style="font-size:13.5px;padding:8px 13px">'+esc(g)+'</button>'}).join("");Array.prototype.forEach.call(box.querySelectorAll(".gchip"),function(el){el.onclick=function(){selectedG=el.getAttribute("data-g");renderGPick()}})}
 function openGMgr(){renderGMgr();document.getElementById("gScrim").classList.add("on");document.getElementById("gMgr").classList.add("on")}
@@ -486,7 +503,6 @@ function render(){
   if(q)rows=rows.filter(function(r){return r.w.name.indexOf(q)>-1});
   if(view==="__star__")rows=rows.filter(function(r){return r.w.star});
   else if(view==="__check__")rows=rows.filter(function(r){return r.w.check});
-  else if(view==="__husk__")rows=rows.filter(function(r){return isHusk(r.w)});
   else if(view&&view.slice(0,2)!=="__")rows=rows.filter(function(r){return (r.w.genre||"未分類")===view});
   if(view==="__deadline__"){
     rows.sort(function(a,b){
@@ -496,22 +512,20 @@ function render(){
   }else{
     rows.sort(function(a,b){return a.s.rank-b.s.rank||a.s.d-b.s.d||a.w.name.localeCompare(b.w.name,"ja")});
   }
-  var barHtml=view==="__husk__"?'<div id="huskBar" style="padding:10px 14px;font-size:13px;color:var(--ink-soft);border:1px dashed var(--line);border-radius:10px;margin:4px 0 10px;cursor:pointer">📦 入庫から <b>'+huskDays()+'日</b> 超過＋締切なし＝抜け殻候補（タップで日数変更）</div>':"";
-  function attachHusk(){var b=document.getElementById("huskBar");if(b)b.onclick=function(){var v=prompt("抜け殻の基準日数",huskDays());var n=parseInt(v,10);if(n>0){localStorage.setItem(HKEY,String(n));render();toast("基準を "+n+" 日にしました")}}}
-  if(!rows.length){l.innerHTML=barHtml+'<div class="empty">'+(works.length?"該当なし":"右下の ＋ から作品を追加。<br>店頭で「持ってたっけ？」を無くします。")+'</div>';attachHusk();return}
-  l.innerHTML=barHtml;attachHusk();
+  if(!rows.length){l.innerHTML='<div class="empty">'+(works.length?"該当なし":"右下の ＋ から作品を追加。<br>店頭で「持ってたっけ？」を無くします。")+'</div>';return}
+  l.innerHTML="";
   rows.forEach(function(r){
     var w=r.w,s=r.s,n=nSets(w),comp=completeCount(w);
     var rate=w.total?Math.round(totalOwned(w)/(n*w.total)*100):0;
     var missHtml;
     if(n===1){
       var m=setMissing(setsList(w)[0],w.total);
-      missHtml=m.length?'<div class="miss"><span class="lbl">抜け</span> <span class="vols">'+esc(missFmt(w,m))+'</span></div>':'<div class="miss" style="color:var(--green)">全巻そろってます</div>';
+      missHtml=m.length?'<div class="miss"><span class="lbl">抜け</span> '+missTapHtml(w,0,m)+'</div>':'<div class="miss" style="color:var(--green)">全巻そろってます</div>';
     }else{
       var lines=setsList(w).map(function(arr,i){
         var m=setMissing(arr,w.total);
         if(m.length===0)return '<div class="setrow"><span class="sn">'+(i+1)+'</span><span style="color:var(--green)">✅ 揃い</span></div>';
-        return '<div class="setrow"><span class="sn">'+(i+1)+'</span><span class="lbl">抜け</span> <span class="vols">'+esc(missFmt(w,m))+'</span></div>';
+        return '<div class="setrow"><span class="sn">'+(i+1)+'</span><span class="lbl">抜け</span> '+missTapHtml(w,i,m)+'</div>';
       }).join("");
       missHtml='<div class="setlist">'+lines+'</div>';
     }
@@ -523,12 +537,12 @@ function render(){
     if(w.deadline)metaBits.push('<span class="dl">締切 '+fmtDate(w.deadline)+'</span>');
     if(w.price)metaBits.push('<span class="tnum">仕入 '+yen(w.price)+'</span>');
     if(w.place)metaBits.push('<span class="gtag">📍'+esc(w.place)+'</span>');
-    if(view==="__husk__"&&stockAge(w)!==null)metaBits.push('<span class="tnum">入庫 '+stockAge(w)+'日</span>');
     if(w.reason)metaBits.push('<span>'+esc(w.reason)+'</span>');
     var thumb=photos[w.id]?'<img class="cthumb" src="'+photos[w.id]+'" alt="">':"";
     var c=document.createElement("div");
     c.className="card lv-"+s.lv;
     c.innerHTML='<div class="c-top">'+thumb+'<div class="c-name" style="flex:1">'+esc(w.name)+'</div><span class="checkb'+(w.check?" on":"")+'" title="家で在庫確認">⚠️</span><span class="starb'+(w.star?" on":"")+'">'+(w.star?"★":"☆")+'</span><span class="pill '+s.cls+'">'+s.label+'</span></div>'+missHtml+'<div class="bar"><i style="width:'+rate+'%"></i></div>'+setLine+(metaBits.length?'<div class="meta">'+metaBits.join("")+'</div>':"");
+    Array.prototype.forEach.call(c.querySelectorAll(".mchip"),function(b){b.onclick=function(e){e.stopPropagation();markOwned(w,+b.getAttribute("data-si"),+b.getAttribute("data-v"))}});
     c.onclick=function(){openSheet(w.id)};
     c.querySelector(".starb").onclick=function(e){e.stopPropagation();w.star=!w.star;persist();render()};
     c.querySelector(".checkb").onclick=function(e){e.stopPropagation();w.check=!w.check;persist();render();toast(w.check?"⚠️ 家で確認リストに入れました":"⚠️ 確認済みにしました")};
@@ -601,6 +615,10 @@ function openSheet(id){
   draftHist=[];refreshDraftUndo();
   setPhotoPreview(w&&photos[w.id]?photos[w.id]:null);
   document.getElementById("del").style.display=w?"block":"none";
+  var sB=document.getElementById("secBasics"),sS=document.getElementById("secSets"),bBar=document.getElementById("basicsBar");
+  if(w){sB.parentNode.insertBefore(sS,sB);sB.classList.add("fold");bBar.style.display="flex"}
+  else{sS.parentNode.insertBefore(sB,sS);sB.classList.remove("fold");bBar.style.display="none"}
+  document.getElementById("basicsArw").textContent="▸";
   buildSets();
   document.getElementById("scrim").classList.add("on");
   document.getElementById("sheet").classList.add("on");
@@ -630,6 +648,7 @@ function delSheet(){if(!editId)return;snapshot();works=works.filter(function(w){
 function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove("on")},1700)}
 document.getElementById("themeToggle").onclick=function(){var cur=document.documentElement.getAttribute("data-theme");var dark=cur?cur==="dark":matchMedia("(prefers-color-scheme:dark)").matches;document.documentElement.setAttribute("data-theme",dark?"light":"dark")};
 document.getElementById("fab").onclick=function(){openSheet(null)};
+document.getElementById("basicsBar").onclick=function(){var sB=document.getElementById("secBasics");var f=sB.classList.toggle("fold");document.getElementById("basicsArw").textContent=f?"▸":"▾"};
 document.getElementById("scrim").onclick=closeSheet;
 document.getElementById("gripTap").onclick=closeSheet;
 document.getElementById("save").onclick=saveSheet;
