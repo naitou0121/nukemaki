@@ -66,10 +66,17 @@ h1{font-size:18px;font-weight:700;margin:0;letter-spacing:.01em}
 .summary{display:flex;gap:14px;font-size:12.5px;color:var(--ink-soft);max-width:520px;margin:6px auto 0}
 .summary b{font-weight:700}
 .summary .hot{color:var(--red)}
-.search{width:100%;margin:10px auto 0;max-width:520px;display:block;
+.searchwrap{position:relative;max-width:520px;margin:10px auto 0}
+.search{width:100%;margin:0;display:block;
   background:var(--card);border:1px solid var(--line);border-radius:11px;
-  padding:9px 12px;font-size:15px;color:var(--ink)}
+  padding:9px 40px 9px 12px;font-size:15px;color:var(--ink)}
 .search::placeholder{color:var(--ink-faint)}
+/* 文字が入っている時だけ出る「消す」ボタン */
+.searchclr{display:none;position:absolute;top:50%;right:6px;transform:translateY(-50%);
+  width:30px;height:30px;padding:0;border:0;border-radius:50%;
+  background:var(--card-2);color:var(--ink-soft);font-size:14px;line-height:1;cursor:pointer}
+.searchwrap.has .searchclr{display:flex;align-items:center;justify-content:center}
+.searchclr:active{transform:translateY(-50%) scale(.9)}
 .genres{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:10px auto 0;max-width:520px}
 .gchips{display:flex;align-items:center;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:3px}
 .gchip{flex:none;font-size:12.5px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
@@ -111,6 +118,8 @@ h1{font-size:18px;font-weight:700;margin:0;letter-spacing:.01em}
 .miss{margin-top:8px;font-size:13.5px;color:var(--ink-soft)}
 .miss .lbl{color:var(--red);font-weight:700}
 .miss .vols{color:var(--red);font-weight:700}
+.mchip{min-width:30px;height:30px;padding:0 5px;margin:2px 3px 2px 0;border-radius:8px;border:1.5px solid var(--red);background:var(--card);color:var(--red);font-size:13px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums;vertical-align:middle}
+.mchip:active{transform:scale(.94)}
 .meta{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:12.5px;color:var(--ink-faint)}
 .meta .dl{color:var(--ink-soft)}
 .bar{margin-top:9px;height:6px;border-radius:6px;background:var(--card-2);overflow:hidden}
@@ -162,6 +171,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .setrow .sn{color:var(--ink-faint);font-weight:700;margin-right:5px}
 .setrow .lbl,.setrow .vols{color:var(--red);font-weight:700}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
+#basicsBar{display:flex;align-items:center;justify-content:space-between;margin:14px 0 2px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:13.5px;font-weight:700;color:var(--ink-soft);cursor:pointer}
+#secBasics.fold > *:not(#basicsBar){display:none}
 .chip{min-width:40px;height:40px;padding:0 6px;border-radius:9px;border:1.5px solid var(--red);
   background:var(--card);color:var(--red);font-size:14px;font-weight:700;cursor:pointer;
   font-variant-numeric:tabular-nums;transition:transform .06s ease}
@@ -230,7 +241,10 @@ body:has(#sheet.on) .calc{bottom:calc(152px + env(safe-area-inset-bottom))}
     <span class="hot">🔴 要対応 <b id="sHot">0</b></span>
     <span>💰 <b id="sYen" class="tnum">¥0</b></span>
   </div>
-  <input class="search" id="search" placeholder="作品名でしぼる…" autocomplete="off">
+  <div class="searchwrap" id="searchWrap">
+    <input class="search" id="search" placeholder="作品名でしぼる…" autocomplete="off">
+    <button type="button" class="searchclr" id="searchClr" aria-label="検索を消す">✕</button>
+  </div>
   <div class="genres" id="genres"></div>
 </header>
 
@@ -260,6 +274,7 @@ body:has(#sheet.on) .calc{bottom:calc(152px + env(safe-area-inset-bottom))}
   <label class="f" for="fName">作品名</label>
   <input class="t" id="fName" placeholder="例）薬屋のひとりごと" autocomplete="off">
 
+  <div id="secBasics"><div id="basicsBar" style="display:none">📚 ジャンル・巻数・追加巻を編集 <span id="basicsArw">▸</span></div>
   <label class="f">ジャンル（タップで選択）<a id="gEdit" style="float:right;color:var(--accent);cursor:pointer;font-weight:400">⚙ ジャンル編集</a></label>
   <div class="chips" id="gPick"></div>
 
@@ -273,8 +288,9 @@ body:has(#sheet.on) .calc{bottom:calc(152px + env(safe-area-inset-bottom))}
   <label class="f" for="fLabels">追加の巻（番外・上下巻など・「・」区切り）</label>
   <input class="t" id="fLabels" placeholder="例）16.5　／　上・下　／　綿・祟・鬼・暇" autocomplete="off">
   <div class="hint">既刊数と足し算されます。既刊数を0にすれば名前だけの巻マスになります</div>
+  </div>
 
-  <label class="f" for="fSets">作るセット数</label>
+  <div id="secSets"><label class="f" for="fSets">作るセット数</label>
   <div class="stepper">
     <button type="button" id="sMinus" aria-label="1減らす">−</button>
     <input class="t" id="fSets" type="number" inputmode="numeric" min="1" max="50" value="1">
@@ -283,6 +299,7 @@ body:has(#sheet.on) .calc{bottom:calc(152px + env(safe-area-inset-bottom))}
 
   <div class="mini" style="font-size:12px;color:var(--ink-soft);margin:12px 0 2px">各セットで持ってる巻をタップ（<span style="color:var(--accent)">青＝持ってる</span> / <span style="color:var(--red)">赤枠＝抜け</span>）</div>
   <div id="setsWrap"></div>
+  </div>
 
   <label class="f" for="fReason">締切の理由（メモ）</label>
   <input class="t" id="fReason" placeholder="例）アニメ2期・実写化・客注 など" autocomplete="off">
@@ -386,6 +403,20 @@ function daysLeft(dl){if(!dl)return null;var p=dl.split("-");var t=new Date(+p[0
 function statusOf(w){if(allDone(w))return {lv:"done",cls:"done",label:"揃い ✅",rank:5,d:9999};var d=daysLeft(w.deadline);if(d===null)return {lv:"nodate",cls:"nodate",label:"締切未設定",rank:3,d:8000};if(d<0)return {lv:"over",cls:"over",label:"期限切れ "+(-d)+"日",rank:0,d:d};if(d<=14)return {lv:"urgent",cls:"urgent",label:"残 "+d+"日",rank:1,d:d};if(d<=30)return {lv:"soon",cls:"soon",label:"残 "+d+"日",rank:2,d:d};return {lv:"ok",cls:"nodate",label:"残 "+d+"日",rank:4,d:d}}
 function rangeFmt(arr){if(!arr.length)return "";var out=[],s=arr[0],p=arr[0];for(var i=1;i<=arr.length;i++){if(arr[i]===p+1){p=arr[i];continue}out.push(s===p?(""+s):(s+"-"+p));s=arr[i];p=arr[i]}return out.join(",")}
 /* 数字の巻は「3-5」と圧縮し、追加巻は名前で並べる */
+function volDisp(w,v){var L=w.labels;return (L&&L[v-1])?L[v-1]:v}
+function missTapHtml(w,si,m){
+  if(m.length>12)return '<span class="vols">'+esc(missFmt(w,m))+'</span>';
+  return '<span class="vols">'+m.map(function(v){return '<button type="button" class="mchip" data-si="'+si+'" data-v="'+v+'">'+esc(String(volDisp(w,v)))+'</button>'}).join("")+'</span>';
+}
+function markOwned(w,si,v){
+  if(!w.setsData||!w.setsData.length)w.setsData=[[]];
+  if(!w.setsData[si])return;
+  if(w.setsData[si].indexOf(v)>=0)return;
+  snapshot();
+  w.setsData[si].push(v);w.setsData[si].sort(function(a,b){return a-b});
+  persist();render();
+  toast("「"+w.name+"」"+volDisp(w,v)+" を持ってるにしました（↩で戻せます）");
+}
 function missFmt(w,volArr){
   var L=labelsOf(w);if(!L)return rangeFmt(volArr).replace(/,/g,"・");
   var np=numPrefix(w);
@@ -446,12 +477,12 @@ function render(){
     var missHtml;
     if(n===1){
       var m=setMissing(setsList(w)[0],w.total);
-      missHtml=m.length?'<div class="miss"><span class="lbl">抜け</span> <span class="vols">'+esc(missFmt(w,m))+'</span></div>':'<div class="miss" style="color:var(--green)">全巻そろってます</div>';
+      missHtml=m.length?'<div class="miss"><span class="lbl">抜け</span> '+missTapHtml(w,0,m)+'</div>':'<div class="miss" style="color:var(--green)">全巻そろってます</div>';
     }else{
       var lines=setsList(w).map(function(arr,i){
         var m=setMissing(arr,w.total);
         if(m.length===0)return '<div class="setrow"><span class="sn">'+(i+1)+'</span><span style="color:var(--green)">✅ 揃い</span></div>';
-        return '<div class="setrow"><span class="sn">'+(i+1)+'</span><span class="lbl">抜け</span> <span class="vols">'+esc(missFmt(w,m))+'</span></div>';
+        return '<div class="setrow"><span class="sn">'+(i+1)+'</span><span class="lbl">抜け</span> '+missTapHtml(w,i,m)+'</div>';
       }).join("");
       missHtml='<div class="setlist">'+lines+'</div>';
     }
@@ -467,6 +498,7 @@ function render(){
     var c=document.createElement("div");
     c.className="card lv-"+s.lv;
     c.innerHTML='<div class="c-top">'+thumb+'<div class="c-name" style="flex:1">'+esc(w.name)+'</div><span class="checkb'+(w.check?" on":"")+'" title="家で在庫確認">⚠️</span><span class="starb'+(w.star?" on":"")+'">'+(w.star?"★":"☆")+'</span><span class="pill '+s.cls+'">'+s.label+'</span></div>'+missHtml+'<div class="bar"><i style="width:'+rate+'%"></i></div>'+setLine+(metaBits.length?'<div class="meta">'+metaBits.join("")+'</div>':"");
+    Array.prototype.forEach.call(c.querySelectorAll(".mchip"),function(b){b.onclick=function(e){e.stopPropagation();markOwned(w,+b.getAttribute("data-si"),+b.getAttribute("data-v"))}});
     c.onclick=function(){openSheet(w.id)};
     c.querySelector(".starb").onclick=function(e){e.stopPropagation();w.star=!w.star;persist();render()};
     c.querySelector(".checkb").onclick=function(e){e.stopPropagation();w.check=!w.check;persist();render();toast(w.check?"⚠️ 家で確認リストに入れました":"⚠️ 確認済みにしました")};
@@ -527,7 +559,7 @@ function openSheet(id){
   selectedG=w&&w.genre?w.genre:((view&&view.slice(0,2)!=="__"&&view)||genres[0]||"未分類");
   renderGPick();
   document.getElementById("fLabels").value=w?extraLabels(w).join("・"):"";
-  document.getElementById("fTotal").value=w?numPrefix(w):1;
+  document.getElementById("fTotal").value=w?numPrefix(w):0;
   setsDraft=w?setsList(w).map(function(a){return new Set(a)}):[new Set()];
   document.getElementById("fSets").value=setsDraft.length;
   document.getElementById("fReason").value=w&&w.reason?w.reason:"";
@@ -538,6 +570,10 @@ function openSheet(id){
   draftHist=[];refreshDraftUndo();
   setPhotoPreview(w&&photos[w.id]?photos[w.id]:null);
   document.getElementById("del").style.display=w?"block":"none";
+  var sB=document.getElementById("secBasics"),sS=document.getElementById("secSets"),bBar=document.getElementById("basicsBar");
+  if(w){sB.parentNode.insertBefore(sS,sB);sB.classList.add("fold");bBar.style.display="flex"}
+  else{sS.parentNode.insertBefore(sB,sS);sB.classList.remove("fold");bBar.style.display="none"}
+  document.getElementById("basicsArw").textContent="▸";
   buildSets();
   document.getElementById("scrim").classList.add("on");
   document.getElementById("sheet").classList.add("on");
@@ -567,6 +603,7 @@ function delSheet(){if(!editId)return;snapshot();works=works.filter(function(w){
 function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove("on")},1700)}
 document.getElementById("themeToggle").onclick=function(){var cur=document.documentElement.getAttribute("data-theme");var dark=cur?cur==="dark":matchMedia("(prefers-color-scheme:dark)").matches;document.documentElement.setAttribute("data-theme",dark?"light":"dark")};
 document.getElementById("fab").onclick=function(){openSheet(null)};
+document.getElementById("basicsBar").onclick=function(){var sB=document.getElementById("secBasics");var f=sB.classList.toggle("fold");document.getElementById("basicsArw").textContent=f?"▸":"▾"};
 document.getElementById("scrim").onclick=closeSheet;
 document.getElementById("gripTap").onclick=closeSheet;
 document.getElementById("save").onclick=saveSheet;
@@ -585,7 +622,10 @@ document.getElementById("sPlus").onclick=function(){stepSets(1)};
 ["fTotal","fPrice","fSets","fPriceAdd"].forEach(function(id){document.getElementById(id).addEventListener("wheel",function(e){e.preventDefault()},{passive:false})});
 function priceAdd(v){var fp=document.getElementById("fPrice");fp.value=(parseInt(fp.value,10)||0)+v;}
 document.getElementById("priceAddBtn").onclick=function(){var el=document.getElementById("fPriceAdd");var v=parseInt(el.value,10)||0;if(!v){toast("足す額を入れてください");return}priceAdd(v);el.value="";toast("仕入れ値に ¥"+v.toLocaleString("ja-JP")+" 足しました（保存で確定）")};
-document.getElementById("search").oninput=function(e){query=e.target.value;render()};
+/* 検索欄：文字があるときだけ✕を出す／✕で空にして全件に戻す */
+function syncSearchClr(){var v=document.getElementById("search").value;document.getElementById("searchWrap").classList.toggle("has",!!v)}
+document.getElementById("search").oninput=function(e){query=e.target.value;syncSearchClr();render()};
+document.getElementById("searchClr").onclick=function(){var el=document.getElementById("search");el.value="";query="";syncSearchClr();render();el.focus()};
 document.getElementById("btnExport").onclick=function(){var box=document.getElementById("ioBox");box.style.display="block";var out=works.map(function(w){return photos[w.id]?Object.assign({},w,{photo:photos[w.id]}):w});document.getElementById("ioText").value=JSON.stringify(out);document.getElementById("ioText").scrollIntoView({behavior:"smooth"});toast("この文字列を保存しておけば復元できます")};
 document.getElementById("btnImport").onclick=function(){document.getElementById("ioBox").style.display="block";document.getElementById("ioText").focus()};
 document.getElementById("ioCopy").onclick=function(){var ta=document.getElementById("ioText");ta.select();try{document.execCommand("copy")}catch(e){}if(navigator.clipboard)navigator.clipboard.writeText(ta.value);toast("コピーしました")};
