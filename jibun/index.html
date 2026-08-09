@@ -61,10 +61,17 @@ h1{font-size:18px;font-weight:700;margin:0;letter-spacing:.01em}
 .summary{display:flex;gap:14px;font-size:12.5px;color:var(--ink-soft);max-width:520px;margin:6px auto 0}
 .summary b{font-weight:700}
 .summary .hot{color:var(--red)}
-.search{width:100%;margin:10px auto 0;max-width:520px;display:block;
+.searchwrap{position:relative;max-width:520px;margin:10px auto 0}
+.search{width:100%;margin:0;display:block;
   background:var(--card);border:1px solid var(--line);border-radius:11px;
-  padding:9px 12px;font-size:15px;color:var(--ink)}
+  padding:9px 40px 9px 12px;font-size:15px;color:var(--ink)}
 .search::placeholder{color:var(--ink-faint)}
+/* 文字が入っている時だけ出る「消す」ボタン */
+.searchclr{display:none;position:absolute;top:50%;right:6px;transform:translateY(-50%);
+  width:30px;height:30px;padding:0;border:0;border-radius:50%;
+  background:var(--card-2);color:var(--ink-soft);font-size:14px;line-height:1;cursor:pointer}
+.searchwrap.has .searchclr{display:flex;align-items:center;justify-content:center}
+.searchclr:active{transform:translateY(-50%) scale(.9)}
 .genres{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:10px auto 0;max-width:520px}
 .gchips{display:flex;align-items:center;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:3px}
 .gchip{flex:none;font-size:12.5px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
@@ -230,7 +237,10 @@ body:has(#sheet.on) .calc{bottom:calc(152px + env(safe-area-inset-bottom))}
     <span class="hot">🔴 要対応 <b id="sHot">0</b></span>
     <span>💰 <b id="sYen" class="tnum">¥0</b></span>
   </div>
-  <input class="search" id="search" placeholder="作品名でしぼる…" autocomplete="off">
+  <div class="searchwrap" id="searchWrap">
+    <input class="search" id="search" placeholder="作品名でしぼる…" autocomplete="off">
+    <button type="button" class="searchclr" id="searchClr" aria-label="検索を消す">✕</button>
+  </div>
   <div class="genres" id="genres"></div>
 </header>
 
@@ -603,7 +613,7 @@ function openSheet(id){
   selectedG=w&&w.genre?w.genre:((view&&view.slice(0,2)!=="__"&&view)||genres[0]||"未分類");
   renderGPick();
   document.getElementById("fLabels").value=w?extraLabels(w).join("・"):"";
-  document.getElementById("fTotal").value=w?numPrefix(w):1;
+  document.getElementById("fTotal").value=w?numPrefix(w):0;
   setsDraft=w?setsList(w).map(function(a){return new Set(a)}):[new Set()];
   document.getElementById("fSets").value=setsDraft.length;
   document.getElementById("fReason").value=w&&w.reason?w.reason:"";
@@ -667,7 +677,10 @@ document.getElementById("sPlus").onclick=function(){stepSets(1)};
 ["fTotal","fPrice","fSets","fPriceAdd"].forEach(function(id){document.getElementById(id).addEventListener("wheel",function(e){e.preventDefault()},{passive:false})});
 function priceAdd(v){var fp=document.getElementById("fPrice");fp.value=(parseInt(fp.value,10)||0)+v;}
 document.getElementById("priceAddBtn").onclick=function(){var el=document.getElementById("fPriceAdd");var v=parseInt(el.value,10)||0;if(!v){toast("足す額を入れてください");return}priceAdd(v);el.value="";toast("仕入れ値に ¥"+v.toLocaleString("ja-JP")+" 足しました（保存で確定）")};
-document.getElementById("search").oninput=function(e){query=e.target.value;render()};
+/* 検索欄：文字があるときだけ✕を出す／✕で空にして全件に戻す */
+function syncSearchClr(){var v=document.getElementById("search").value;document.getElementById("searchWrap").classList.toggle("has",!!v)}
+document.getElementById("search").oninput=function(e){query=e.target.value;syncSearchClr();render()};
+document.getElementById("searchClr").onclick=function(){var el=document.getElementById("search");el.value="";query="";syncSearchClr();render();el.focus()};
 document.getElementById("btnExport").onclick=function(){var box=document.getElementById("ioBox");box.style.display="block";var out=works.map(function(w){return photos[w.id]?Object.assign({},w,{photo:photos[w.id]}):w});document.getElementById("ioText").value=JSON.stringify(out);document.getElementById("ioText").scrollIntoView({behavior:"smooth"});toast("この文字列を保存しておけば復元できます")};
 document.getElementById("btnImport").onclick=function(){document.getElementById("ioBox").style.display="block";document.getElementById("ioText").focus()};
 document.getElementById("ioCopy").onclick=function(){var ta=document.getElementById("ioText");ta.select();try{document.execCommand("copy")}catch(e){}if(navigator.clipboard)navigator.clipboard.writeText(ta.value);toast("コピーしました")};
