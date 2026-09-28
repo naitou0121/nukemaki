@@ -701,6 +701,8 @@ migrate();
 render();
 </script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
+
+
 /* ==== nukemaki backup guard : begin (2026-09-28) ==== */
 /* ===== 🛟 バックアップの番人（2026-09-28 新設・全6コピー共通） =====
    なぜ作ったか：2026-09-28、貴斗さんがホーム画面アイコンを作り直したら📚抜け巻の中身が
@@ -817,7 +819,14 @@ render();
         'バックアップのファイルがあれば、ここから戻せます。', [['📂 ファイルから戻す', '#c0392b', '#fff', pick]]);
       return;
     }
-    if (!n) return;
+    /* 空っぽで履歴も無い＝新しい端末／保存ごと消えた後。戻す入口を静かに出しておく
+       （2026-09-28 追加：この状態で何も出ないと、戻せることに気づけない） */
+    if (!n) {
+      show('#eef2f7', '#3a4658', '📂 前の端末やバックアップから戻せます',
+        'ファイルに保存しておいたバックアップがあれば、ここから読み込めます。',
+        [['📂 ファイルから戻す', '#3a4658', '#fff', pick]]);
+      return;
+    }
     if (last && d < WARN_DAYS && !isNaN(d)) { set(BK_N, String(n)); return; }
     if (snooze && Date.now() - snooze < 86400000) { set(BK_N, String(n)); return; }
 
@@ -839,6 +848,32 @@ render();
     bar.appendChild(row);
   }
   function pick() { if (picker) picker.click(); }
+
+  /* 上の🛟から開く小さい紙。道具立ては一覧のいちばん下にあって、作品が多いと
+     スクロールしないと届かない（2026-09-28 貴斗さんの実機で判明）。常に1タップで開ける口を作る */
+  function panel() {
+    var old = document.getElementById('bkPanel'); if (old) { old.remove(); return; }
+    var w = mk('div', 'position:fixed;inset:0;z-index:9998;background:rgba(15,22,34,.55);'
+      + 'display:flex;align-items:flex-end');
+    var c = mk('div', 'width:100%;background:#fffdf8;border-radius:16px 16px 0 0;padding:18px 16px '
+      + 'calc(18px + env(safe-area-inset-bottom));box-shadow:0 -8px 30px rgba(0,0,0,.2)');
+    var last = get(BK_AT), d = daysSince(last), n = count();
+    c.appendChild(mk('div', 'font-size:15px;font-weight:800;color:#23272e', '🛟 バックアップ'));
+    c.appendChild(mk('div', 'font-size:12px;color:#5c6270;margin:4px 0 12px;line-height:1.6',
+      (n ? ('今 ' + n + ' 件。') : '今は空っぽです。')
+      + (last ? ('最後に保存したのは ' + (d === 0 ? '今日' : d + '日前') + '。') : 'まだ一度も保存していません。')
+      + '保存したファイルは「ファイル」アプリに残ります。'));
+    var b1 = btn('🛟 ファイルに保存', '#f59e0b', '#3a2600');
+    var b2 = btn('📂 ファイルから戻す', '#e7eef8', '#1a2b45');
+    var b3 = btn('閉じる', '#eceff3', '#5c6270');
+    [b1, b2, b3].forEach(function (b) { b.style.width = '100%'; b.style.marginTop = '8px'; b.style.padding = '14px 0'; b.style.fontSize = '14px'; });
+    b1.addEventListener('click', function () { w.remove(); save(); });
+    b2.addEventListener('click', function () { w.remove(); pick(); });
+    b3.addEventListener('click', function () { w.remove(); });
+    w.addEventListener('click', function (e) { if (e.target === w) w.remove(); });
+    c.appendChild(b1); c.appendChild(b2); c.appendChild(b3);
+    w.appendChild(c); w.id = 'bkPanel'; document.body.appendChild(w);
+  }
 
   function boot() {
     var wrap = document.querySelector('.wrap') || document.body;
@@ -862,6 +897,17 @@ render();
       tools.insertBefore(a1, tools.firstChild); tools.insertBefore(a2, a1.nextSibling);
     }
 
+    /* 上のヘッダーにも🛟を置く（↩ ↪ ◐ の並び）。ここが常に1タップで届く入口 */
+    var ht = document.querySelector('.htools');
+    if (ht && !document.getElementById('bkHeadBtn')) {
+      var hb = document.createElement('button');
+      hb.className = (ht.firstElementChild && ht.firstElementChild.className) || '';
+      hb.id = 'bkHeadBtn'; hb.type = 'button'; hb.textContent = '🛟';
+      hb.setAttribute('aria-label', 'バックアップ'); hb.title = 'バックアップ';
+      hb.addEventListener('click', panel);
+      ht.appendChild(hb);
+    }
+
     /* 保存のたびに作品数を覚える＝空っぽ検知の材料 */
     if (typeof g.persist === 'function') {
       var p0 = g.persist;
@@ -869,7 +915,7 @@ render();
     }
     draw();
     setInterval(draw, 60000);
-    g.nukemakiBackup = { save: save, pick: pick, draw: draw };
+    g.nukemakiBackup = { save: save, pick: pick, draw: draw, panel: panel };
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
