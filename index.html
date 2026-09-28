@@ -700,6 +700,181 @@ document.getElementById("calcBtn").onclick=function(){document.getElementById("c
 migrate();
 render();
 </script>
-<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
+/* ==== nukemaki backup guard : begin (2026-09-28) ==== */
+/* ===== 🛟 バックアップの番人（2026-09-28 新設・全6コピー共通） =====
+   なぜ作ったか：2026-09-28、貴斗さんがホーム画面アイコンを作り直したら📚抜け巻の中身が
+   丸ごと消えた。データは端末の中だけにあり、「バックアップを書き出す」は押さないと何も
+   残らない作りだった（押す→文字列をコピー→どこかに貼る、の3手）。会員に配っている
+   青のPWAもまったく同じ条件で、同じ事故が起きる。
+
+   入れたもの（サーバーには何も送らない＝「この端末内だけに保存」の約束は変えない）：
+     ① 1タップで iPhoneの「ファイル」へ保存（共有シート→iCloud Driveに入れば端末を
+        変えても・アプリを消しても残る）
+     ② ファイルから戻す（保存できても戻せなければ意味がない）
+     ③ しつこい帯：しばらく保存していないと画面の上に出る
+     ④ 空っぽ検知：前は中身があったのに0件で開いた時に警告を出す
+   限界：iOSは端末内の保存を消しにくることがあり、④の記録ごと消える場合は検知できない。
+        確実に残るのは①でファイルに出したものだけ。だから①を1タップにしてある。 */
+(function () {
+  'use strict';
+  var BK_AT = 'nukemaki_backup_at';      // 最後に保存した時刻
+  var BK_N = 'nukemaki_last_count';      // 最後に見た作品数（空っぽ検知の材料）
+  var BK_SNOOZE = 'nukemaki_backup_snooze';
+  var WARN_DAYS = 7;
+  var g = (typeof window !== 'undefined') ? window : this;
+
+  function ls(fn, d) { try { return fn(); } catch (e) { return d; } }
+  function get(k) { return ls(function () { return localStorage.getItem(k); }, null); }
+  function set(k, v) { ls(function () { localStorage.setItem(k, v); }); }
+  function say(m, ok) { try { g.toast(m, ok); } catch (e) {} }
+  function count() { return (g.works && g.works.length) || 0; }
+  function daysSince(t) { return t ? Math.floor((Date.now() - (+t)) / 86400000) : null; }
+
+  /* 書き出しの中身＝既存の「バックアップを書き出す」と同じ形（写真も一緒に入る） */
+  function payload() {
+    var w = g.works || [], p = g.photos || {};
+    return JSON.stringify(w.map(function (x) {
+      return p[x.id] ? Object.assign({}, x, { photo: p[x.id] }) : x;
+    }));
+  }
+  function fileName() {
+    var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; };
+    return '抜け巻バックアップ_' + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '.json';
+  }
+
+  /* ① 保存：共有シート → ダウンロード → 最後は今までの文字列コピー、の順で降りる */
+  function save() {
+    if (!count()) { say('中身がありません', false); return; }
+    var json = payload(), name = fileName();
+    var done = function () { set(BK_AT, String(Date.now())); set(BK_N, String(count()));
+                             ls(function () { localStorage.removeItem(BK_SNOOZE); }); draw();
+                             say('保存しました（「ファイル」アプリに入っていれば安全です）'); };
+    try {
+      var file = new File([json], name, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: name })
+          .then(done)
+          .catch(function (e) { if (!e || e.name !== 'AbortError') dl(json, name, done); });
+        return;
+      }
+    } catch (e) {}
+    dl(json, name, done);
+  }
+  function dl(json, name, done) {
+    try {
+      var url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click();
+      setTimeout(function () { a.remove(); URL.revokeObjectURL(url); }, 4000);
+      done(); return;
+    } catch (e) {}
+    var box = document.getElementById('ioBox'), ta = document.getElementById('ioText');
+    if (box && ta) { box.style.display = 'block'; ta.value = json; ta.focus();
+      try { ta.setSelectionRange(0, ta.value.length); } catch (x) {}
+      say('この文字列をコピーして、どこかに貼って残してください', false); }
+  }
+
+  /* ② ファイルから戻す（保存できても戻せなければ意味がない） */
+  function restore(f) {
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      var a;
+      try { a = JSON.parse(String(r.result)); } catch (e) { say('読めませんでした（別のファイルかも）', false); return; }
+      if (!Array.isArray(a)) { say('抜け巻のバックアップではないようです', false); return; }
+      var now = count();
+      if (now && !confirm('今ある ' + now + ' 件を、ファイルの ' + a.length + ' 件で置きかえます。よろしいですか？\n（↩ で戻せます）')) return;
+      try { g.snapshot(); } catch (e) {}
+      a.forEach(function (w) { if (w.photo) { (g.photos || (g.photos = {}))[w.id] = w.photo; delete w.photo; } });
+      try { g.persistPhotos(); } catch (e) {}
+      g.works = a;
+      try { g.migrate(); } catch (e) {}
+      try { g.persist(); } catch (e) {}
+      try { g.render(); } catch (e) {}
+      set(BK_N, String(count())); draw();
+      say(a.length + ' 件を戻しました（↩ で元に戻せます）');
+    };
+    r.readAsText(f);
+  }
+
+  /* ③④ 画面の上に出す帯 */
+  var bar, picker;
+  function mk(tag, css, txt) { var e = document.createElement(tag); e.style.cssText = css; if (txt) e.textContent = txt; return e; }
+  function btn(txt, bg, fg) {
+    return mk('button', 'border:none;border-radius:9px;padding:9px 12px;font-size:12.5px;font-weight:800;'
+      + 'background:' + bg + ';color:' + fg + ';white-space:nowrap;cursor:pointer', txt);
+  }
+  function draw() {
+    if (!bar) return;
+    bar.textContent = ''; bar.style.display = 'none';
+    var n = count(), last = get(BK_AT), lastN = +(get(BK_N) || 0), d = daysSince(last);
+    var snooze = +(get(BK_SNOOZE) || 0);
+
+    if (!n && lastN > 0) {                       /* ④ 空っぽ検知 */
+      show('#fdecec', '#c0392b',
+        '⚠️ 中身がありません。前に開いた時は ' + lastN + ' 件ありました。',
+        'バックアップのファイルがあれば、ここから戻せます。', [['📂 ファイルから戻す', '#c0392b', '#fff', pick]]);
+      return;
+    }
+    if (!n) return;
+    if (last && d < WARN_DAYS && !isNaN(d)) { set(BK_N, String(n)); return; }
+    if (snooze && Date.now() - snooze < 86400000) { set(BK_N, String(n)); return; }
+
+    var msg = last ? ('🛟 ' + d + '日バックアップしていません（' + n + '件）')
+                   : ('🛟 まだ一度もバックアップしていません（' + n + '件）');
+    show('#fff7e6', '#8a5a00', msg,
+      'アイコンを作り直したり、iPhoneが保存を消すと中身は戻せません。1タップで「ファイル」に残せます。',
+      [['🛟 いま保存する', '#f59e0b', '#3a2600', save], ['あとで', '#e7e2d8', '#5c5343', function () { set(BK_SNOOZE, String(Date.now())); draw(); }]]);
+    set(BK_N, String(n));
+  }
+  function show(bg, fg, title, note, btns) {
+    bar.style.display = 'block';
+    bar.style.cssText = 'display:block;background:' + bg + ';border:1px solid ' + fg + '33;border-radius:12px;'
+      + 'padding:12px 13px;margin:0 0 12px;line-height:1.55';
+    bar.appendChild(mk('div', 'font-size:13.5px;font-weight:800;color:' + fg, title));
+    bar.appendChild(mk('div', 'font-size:11.5px;color:' + fg + 'cc;margin-top:3px', note));
+    var row = mk('div', 'display:flex;gap:8px;margin-top:9px;flex-wrap:wrap');
+    btns.forEach(function (b) { var e = btn(b[0], b[1], b[2]); e.addEventListener('click', b[3]); row.appendChild(e); });
+    bar.appendChild(row);
+  }
+  function pick() { if (picker) picker.click(); }
+
+  function boot() {
+    var wrap = document.querySelector('.wrap') || document.body;
+    var list = document.getElementById('list');
+    bar = mk('div', 'display:none');
+    if (list && list.parentNode === wrap) wrap.insertBefore(bar, list); else wrap.insertBefore(bar, wrap.firstChild);
+
+    picker = document.createElement('input');
+    picker.type = 'file'; picker.accept = '.json,application/json,text/plain';
+    picker.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px';
+    picker.addEventListener('change', function () { restore(picker.files && picker.files[0]); picker.value = ''; });
+    document.body.appendChild(picker);
+
+    /* 下の道具立てにも常設で置く（帯が出ていない日でも押せるように） */
+    var tools = document.querySelector('.tools');
+    if (tools) {
+      var a1 = document.createElement('a'); a1.textContent = '🛟 ファイルに保存';
+      a1.addEventListener('click', save);
+      var a2 = document.createElement('a'); a2.textContent = '📂 ファイルから戻す';
+      a2.addEventListener('click', pick);
+      tools.insertBefore(a1, tools.firstChild); tools.insertBefore(a2, a1.nextSibling);
+    }
+
+    /* 保存のたびに作品数を覚える＝空っぽ検知の材料 */
+    if (typeof g.persist === 'function') {
+      var p0 = g.persist;
+      g.persist = function () { var r = p0.apply(this, arguments); set(BK_N, String(count())); return r; };
+    }
+    draw();
+    setInterval(draw, 60000);
+    g.nukemakiBackup = { save: save, pick: pick, draw: draw };
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+/* ==== nukemaki backup guard : end ==== */
+</script>
 </body>
 </html>
